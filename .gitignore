@@ -1,0 +1,6 @@
+.env
+.venv/
+data/badminton.db
+__pycache__/
+*.pyc
+eval_results.json
