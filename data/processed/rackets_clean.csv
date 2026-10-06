@@ -1,0 +1,27 @@
+racket_id,name,brand,weight_class,balance,stiffness,price_eur,level,play_style,needs_review
+1,DriveX 12,Victor,4U,head_heavy,stiff,205,advanced,speed,False
+2,Nanoflare 700 Play,Yonex,4U,even,flexible,45,intermediate,speed,False
+3,Axforce 80,Li-Ning,4U,head_heavy,stiff,160,advanced,attack,False
+4,Astrox 99 Play,Yonex,4U,head_heavy,medium,55,intermediate,speed,False
+5,Astrox 99 Pro,Yonex,4U,head_heavy,stiff,224,advanced,attack,False
+6,Astrox 99 Game,Yonex,4U,even,medium,109,intermediate,attack,False
+7,Nanoflare 1000Z,Yonex,4U,even,medium,209,advanced,speed,False
+8,Arcsaber 7 Tour,Yonex,4U,even,medium,140,advanced,speed,False
+9,AuraSpeed LYC,Victor,4U,head_heavy,stiff,143,advanced,attack,False
+10,Halbertec 8000,Li-Ning,4U,even,stiff,200,advanced,speed,False
+11,Bladex 880,Li-Ning,4U,even,stiff,240,advanced,speed,False
+12,Windstorm 79S,Li-Ning,4U,head_heavy,flexible,110,beginner,speed,False
+13,Calibar 300C,Li-Ning,4U,head_heavy,medium,80,intermediate,speed,False
+14,Aeronaut 6000,Li-Ning,4U,head_light,medium,150,advanced,attack,False
+15,Acrospeed 8,Mizuno,4U,head_light,flexible,110,advanced,speed,False
+16,Fortius 55 Strive,Mizuno,4U,head_heavy,stiff,150,advanced,attack,False
+17,Sabre 28,Proace,4U,even,stiff,65,intermediate,attack,False
+18,Abs-Power,Proace,4U,even,medium,150,intermediate,speed,False
+19,Fantala Pro 101,Apacs,4U,even,medium,80,intermediate,attack,False
+20,ENIGMA 900 V2,FlyPower,4U,head_heavy,medium,130,advanced,speed,False
+21,Halbertec 2000,Li-Ning,4U,even,flexible,40,beginner,control,False
+22,Tectonic 7,Li-Ning,4U,head_heavy,medium,130,advanced,allround,False
+23,Lightning 2000,Li-Ning,4U,head_heavy,medium,40,beginner,control,False
+24,Halbertec 3000,Li-Ning,4U,even,medium,45,beginner,allround,False
+25,Bladex 500,Li-Ning,4U,head_light,stiff,55,beginner,control,False
+26,Axforce 20,Li-Ning,4U,head_heavy,medium,40,beginner,attack,False

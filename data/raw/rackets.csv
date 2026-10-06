@@ -1,0 +1,27 @@
+name,brand,weight_class,balance,stiffness,price_eur,level,play_style
+DriveX 12,Victor,4U,head_heavy,stiff,205,advanced,speed
+Nanoflare 700 Play,Yonex,4U,even,flexible,45,intermediate,speed
+Axforce 80,Lining,4U,head_heavy,stiff,160,advanced,attack
+Astrox 99 Play,Yonex,4U,head_heavy,medium,55,intermediate,speed
+Astrox 99 Pro,Yonex,4U,head_heavy,stiff,224,advanced,attack
+Astrox 99 Game,Yonex,4U,even,medium,109,intermediate,attack
+Nanoflare 1000Z,Yonex,4U,even,medium,209,advanced,speed
+Arcsaber 7 Tour,Yonex,4U,even,medium,140,advanced,speed
+AuraSpeed LYC,Victor,4U,head_heavy,stiff,143,advanced,attack
+Halbertec 8000,Lining,4U,even,stiff,200,advanced,speed
+Bladex 880,Lining,4U,even,stiff,240,advanced,speed
+Windstorm 79S,Lining,4U,head_heavy,flexible,110,beginner,speed
+Calibar 300C,Lining,4U,head_heavy,medium,80,intermediate,speed
+Aeronaut 6000,Lining,4U,head_light,medium,150,advanced,attack
+Acrospeed 8,Mizuno,4U,head_light,flexible,110,advanced,speed
+Fortius 55 Strive,Mizuno,4U,head_heavy,stiff,150,advanced,attack
+Sabre 28,Proace,4U,even,stiff,65,intermediate,attack
+Abs-Power,Proace,4U,even,medium,150,intermediate,speed
+Fantala Pro 101,Apacs,4U,even,medium,80,intermediate,attack
+ENIGMA 900 V2,FlyPower,4U,head_heavy,medium,130,advanced,speed
+Halbertec 2000,Lining,4U,even,flexible,40,beginner,control
+Tectonic 7,Lining,4U,head_heavy,medium,130,advanced,allround
+Lightning 2000,Lining,4U,head_heavy,medium,40,beginner,control
+Halbertec 3000,Lining,4U,even,medium,45,beginner,allround
+Bladex 500,Lining,4U,head_light,stiff,55,beginner,control
+Axforce 20,Lining,4U,head_heavy,medium,40,beginner,attack
