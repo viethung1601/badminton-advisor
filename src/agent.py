@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 import anthropic
 
+from knowledge import search_knowledge
 from config import ROOT
 from clean_rackets import ALLOWED
 from recommender import recommend, find_racket
@@ -42,10 +43,28 @@ TOOLS = [{
         },
         "required": ["level", "play_style", "max_price"],
     },
-
-    
-}]
-TOOLS.append({
+    },
+     {
+    "name": "search_knowledge",
+    "description": (
+        "Tra cứu kiến thức cầu lông từ kho tài liệu đã kiểm soát: balance "
+        "(head heavy/light), độ cứng đũa vợt, 3U/4U, cỡ cán G, độ căng cước, "
+        "lời khuyên theo trình độ. Dùng cho câu hỏi giải thích hoặc khái niệm. "
+        "KHÔNG dùng để tra giá/tên vợt cụ thể (dùng find_racket) và không dùng "
+        "để gợi ý vợt theo ngân sách (dùng recommend_racket)."
+     ),
+     "input_schema": {
+         "type": "object",
+        "properties": {
+           "query": {
+                 "type": "string",
+                 "description": "Câu hỏi của người dùng, giữ nguyên cách gọi (ví dụ 'nặng đầu', 'head heavy')",
+             }
+         },
+         "required": ["query"],
+     },
+     },
+    {
     "name": "find_racket",
     "description": (
         "Tra thông tin một cây vợt cụ thể theo tên (giá, trình độ, lối chơi...) "
@@ -57,7 +76,11 @@ TOOLS.append({
         "properties": {"name": {"type": "string", "description": "Tên vợt, ví dụ 'Astrox 99 Pro'."}},
         "required": ["name"],
     },
-})
+    }
+]
+
+    
+
 
 SYSTEM = """Bạn là tư vấn viên vợt cầu lông vui tính. Trả lời bằng ngôn ngữ người dùng đang dùng.
 Quy tắc:
@@ -69,6 +92,9 @@ Quy tắc:
    - no_good_match / no_rackets_in_budget:  nói thẳng là không có. Nếu cheapest_match là một đối tượng, được nêu đúng name, price_eur, level, play_style của nó. Nếu is_exact là false, phải nói rõ đó chỉ là vợt gần nhất (gọi level/play_style thật của nó, không gọi là "phù hợp"), rồi hỏi người dùng có muốn nâng ngân sách không. Nếu cheapest_match là null thì nói cửa hàng chưa có vợt nào đủ gần ở mọi mức giá. Không nêu con số ngân sách nào khác.
 4. Ngắn gọn, mỗi vợt một dòng kèm lý do.
 5. Khi người dùng hỏi về một vợt cụ thể theo tên (giá, thông số), gọi find_racket. Chỉ nói thông tin có trong kết quả. status not_found thì nói thẳng là cửa hàng không có vợt đó, không đoán từ kiến thức bên ngoài.
+6. Câu hỏi giải thích hoặc khái niệm về vợt (head heavy/light, độ cứng, 3U/4U, cỡ cán, độ căng cước, nên chọn loại nào theo trình độ): gọi search_knowledge và CHỈ dùng nội dung trong passages trả về. Không thêm kiến thức ngoài.
+7. Nếu status là no_relevant_knowledge, hoặc các đoạn không thật sự nói về điều được hỏi (chỉ cùng chủ đề), nói thẳng là kho kiến thức chưa có thông tin này. Không tự trả lời bằng kiến thức chung.
+8. Khi trả lời từ passages, nói đây là thông tin theo nguồn (tên trang trong source_url), không trình bày như sự thật tuyệt đối.
 """
 
 
@@ -83,8 +109,13 @@ def run_tool(name: str, args: dict) -> tuple[str, bool]:
         except Exception as e:
             return json.dumps({"error": str(e)}), True
 
+    if name == "search_knowledge":
+        result = search_knowledge(args["query"])
+        return json.dumps(result, ensure_ascii=False), result.get("status") == "error"
+    
     if name != "recommend_racket":
         return json.dumps({"error": f"tool lạ: {name}"}), True
+    
     for col in ("level", "play_style", "balance", "stiffness"):
         v = args.get(col)
         if v is not None and v not in ENUM[col]:
@@ -117,6 +148,8 @@ def chat_turn(messages: list) -> str:
             if block.type == "tool_use":
                 print(f"  [tool] {block.name}({json.dumps(block.input, ensure_ascii=False)})")
                 content, is_err = run_tool(block.name, block.input)
+                if block.name == "search_knowledge":
+                    print("  [passages]", [p["id"] for p in json.loads(content).get("passages", [])])
                 tool_results.append({"type": "tool_result", "tool_use_id": block.id,
                                      "content": content, "is_error": is_err})
         messages.append({"role": "user", "content": tool_results})
