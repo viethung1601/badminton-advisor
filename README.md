@@ -36,3 +36,6 @@ nói tỉ lệ lỗi trên bộ câu này thấp (khoảng dưới 3%).
   Với ngưỡng này, vợt cho trình độ thấp hơn có thể lọt vào mục "gần nhất" của người chơi nâng cao.
 - Script kiểm tra con số và tên vợt, chưa kiểm tra lời mô tả. Lỗi diễn đạt (như gọi vợt
   gần đúng là "phù hợp") chỉ phát hiện khi đọc câu trả lời thật.
+
+## đánh giá model embedding cho câu trả lời dạng text
+  - Truy xuất: 10/11 trên bộ 11 câu tự viết. Lỗi còn lại: ‘nhẹ đầu hợp với ai’ đưa k02 xuống hạng 5.”

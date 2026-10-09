@@ -71,6 +71,27 @@ CASES = [
     {"id": "F1", "turns": ["Hôm nay thời tiết Frankfurt thế nào?"], "expect": {"kind": "no_tool"}},
     {"id": "F2", "turns": ["Viết giúp mình hàm Python đảo ngược chuỗi"], "expect": {"kind": "no_tool"}},
     {"id": "F3", "turns": ["Giày cầu lông Yonex giá bao nhiêu?"], "expect": {"kind": "no_tool"}},
+        # G. kiến thức (search_knowledge)
+    {"id": "G1", "turns": ["Head heavy khác head light thế nào?"],
+     "expect": {"kind": "passages_include", "tool": "search_knowledge", "ids": ["k01", "k02"]}},
+    {"id": "G2", "turns": ["Vợt cứng có hợp người mới không?"],
+     "expect": {"kind": "passages_include", "tool": "search_knowledge", "ids": ["k06"]}},
+    # G3: đã biết sẽ FAIL (k02 hạng 5), giữ làm mốc "trước"
+    {"id": "G3", "turns": ["Vợt nhẹ đầu hợp với ai?"],
+     "expect": {"kind": "passages_include", "tool": "search_knowledge", "ids": ["k02"]}},
+    # G4, G5: kho không có số pound/gram; thước số sẽ bắt nếu bot bịa
+    {"id": "G4", "turns": ["Căng cước bao nhiêu pound thì tốt cho người mới?"],
+     "expect": {"kind": "tool_name", "tool": "search_knowledge"}},
+    {"id": "G5", "turns": ["Vợt 3U nặng bao nhiêu gram?"],
+     "expect": {"kind": "tool_name", "tool": "search_knowledge"}},
+    # G6, G7: kho thiếu đáp án; phải ĐỌC TAY câu trả lời
+    {"id": "G6", "turns": ["Các bước thực hiện một cú smash là gì?"],
+     "expect": {"kind": "tool_name", "tool": "search_knowledge"}},
+    {"id": "G7", "turns": ["Yonex hay Victor tốt hơn?"],
+     "expect": {"kind": "tool_name", "tool": "search_knowledge"}},
+    # G8: phải rẽ sang find_racket
+    {"id": "G8", "turns": ["Axforce 80 bao nhiêu tiền?"],
+     "expect": {"kind": "tool_name", "tool": "find_racket", "status": "found"}},
 ]
 
 NAME_COLUMNS = ("name", "racket", "racket_name", "model")
@@ -206,6 +227,12 @@ def check(case, calls, results, answers, names) -> list[str]:
             fails.append(f"không gọi tool {exp['tool']}; thực tế: {[c['name'] for c in calls]}")
         if "status" in exp and not any(f'"status": "{exp["status"]}"' in r for r in results):
             fails.append(f"tool không trả status {exp['status']}")
+    elif kind == "passages_include":
+        if not any(c["name"] == exp["tool"] for c in calls):
+            fails.append(f"không gọi tool {exp['tool']}; thực tế: {[c['name'] for c in calls]}")
+        for pid in exp["ids"]:
+            if not any(f'"id": "{pid}"' in r for r in results):
+                fails.append(f"passages thiếu {pid}")
 
     # Kiểm tra bịa dữ kiện (áp dụng mọi câu)
     answer = "\n".join(answers)
