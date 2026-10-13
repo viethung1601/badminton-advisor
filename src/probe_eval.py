@@ -24,6 +24,7 @@ for q, required, optional in CASES:
     ids = [r["id"] for r in got]
     ok = all(e in ids for e in required)
     hit += ok
+    total += 1
     ranks = {e: (ids.index(e) + 1 if e in ids else "ngoài top 3")
              for e in required + optional}
     print(f"{'OK  ' if ok else 'FAIL'} {q} -> {ranks}")
