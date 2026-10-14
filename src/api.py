@@ -2,7 +2,12 @@
 import threading
 import time
 import uuid
+import os
+import re
+import httpx
 
+from dotenv import load_dotenv
+from config import ROOT
 from fastapi import FastAPI, HTTPException
 from fastapi import Query
 from catalog import list_rackets, SORTS
@@ -15,9 +20,13 @@ from agent import chat_turn
 WEB_DIR = Path(__file__).resolve().parent.parent / "web" 
 
 MAX_MESSAGE_CHARS = 500   # chặn tin nhắn quá dài (tốn token)
-MAX_USER_TURNS = 1       # số lượt người dùng tối đa mỗi session
+MAX_USER_TURNS = 20       # số lượt người dùng tối đa mỗi session
 SESSION_TTL_SEC = 30 * 60
 MAX_SESSIONS = 100
+load_dotenv(ROOT / ".env")
+N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")   # chỉ đặt trong .env
+MAX_EXPERT_PER_SESSION = 3
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 app = FastAPI(title="Badminton Advisor")
 
@@ -26,6 +35,7 @@ class Session:
     def __init__(self):
         self.messages: list = []
         self.turns = 0
+        self.expert_sent = 0
         self.last_used = time.time()
         self.lock = threading.Lock()
 
@@ -113,5 +123,38 @@ def chat(body: ChatIn):
         session.last_used = time.time()
     return ChatOut(session_id=sid, reply=reply)
 
+class ExpertIn(BaseModel):
+    question: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
+    email: str = Field(min_length=3, max_length=254)
+    session_id: str | None = None
+
+@app.post("/ask-expert")
+def ask_expert(body: ExpertIn):
+    question = body.question.strip()
+    email = body.email.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Câu hỏi trống.")
+    if not EMAIL_RE.match(email):
+        raise HTTPException(status_code=422, detail="Email không hợp lệ.")
+    if not N8N_WEBHOOK_URL:
+        raise HTTPException(status_code=503, detail="Tính năng hỏi chuyên gia chưa được cấu hình.")
+
+    with _sessions_lock:   # chỉ tra cứu, không tạo session mới
+        session = _sessions.get(body.session_id) if body.session_id else None
+    if session is None:
+        raise HTTPException(status_code=404, detail="Phiên không tồn tại hoặc đã hết hạn. Hãy chat lại rồi gửi.")
+
+    with session.lock:
+        if session.expert_sent >= MAX_EXPERT_PER_SESSION:
+            raise HTTPException(status_code=429, detail="Bạn đã gửi tối đa số câu hỏi cho chuyên gia trong phiên này.")
+        try:
+            r = httpx.post(N8N_WEBHOOK_URL, json={"question": question, "email": email}, timeout=10)
+            r.raise_for_status()
+        except httpx.HTTPError as e:
+            print(f"[error] ask-expert: {type(e).__name__}")   # không log câu hỏi hay email
+            raise HTTPException(status_code=502, detail="Không gửi được câu hỏi, thử lại sau.")
+        session.expert_sent += 1
+        session.last_used = time.time()
+    return {"status": "sent"}
 
 app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
