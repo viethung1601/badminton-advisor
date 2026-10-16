@@ -26,7 +26,7 @@ MAX_SESSIONS = 100
 load_dotenv(ROOT / ".env")
 N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")   # chỉ đặt trong .env
 MAX_EXPERT_PER_SESSION = 3
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+DISCORD_ID_RE = re.compile(r"[0-9]{17,20}")   # [0-9], không dùng \d vì \d nhận cả chữ số Unicode khác
 
 app = FastAPI(title="Badminton Advisor")
 
@@ -125,17 +125,17 @@ def chat(body: ChatIn):
 
 class ExpertIn(BaseModel):
     question: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
-    email: str = Field(min_length=3, max_length=254)
+    discord_id: str = Field(min_length=1, max_length=40)
     session_id: str | None = None
 
 @app.post("/ask-expert")
 def ask_expert(body: ExpertIn):
     question = body.question.strip()
-    email = body.email.strip()
+    discord_id = body.discord_id.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Câu hỏi trống.")
-    if not EMAIL_RE.match(email):
-        raise HTTPException(status_code=422, detail="Email không hợp lệ.")
+    if not DISCORD_ID_RE.fullmatch(discord_id):
+        raise HTTPException(status_code=422, detail="Discord ID không hợp lệ.")
     if not N8N_WEBHOOK_URL:
         raise HTTPException(status_code=503, detail="Tính năng hỏi chuyên gia chưa được cấu hình.")
 
@@ -148,7 +148,15 @@ def ask_expert(body: ExpertIn):
         if session.expert_sent >= MAX_EXPERT_PER_SESSION:
             raise HTTPException(status_code=429, detail="Bạn đã gửi tối đa số câu hỏi cho chuyên gia trong phiên này.")
         try:
-            r = httpx.post(N8N_WEBHOOK_URL, json={"question": question, "email": email}, timeout=10)
+            r = httpx.post(
+                N8N_WEBHOOK_URL,
+                json={
+                    "question": question,
+                    "discord_id": discord_id,
+                    "discord_url": f"https://discord.com/users/{discord_id}",  # server tự ghép, người dùng không chèn được link
+                },
+                timeout=10,
+            )
             r.raise_for_status()
         except httpx.HTTPError as e:
             print(f"[error] ask-expert: {type(e).__name__}")   # không log câu hỏi hay email

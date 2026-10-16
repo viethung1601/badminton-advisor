@@ -215,3 +215,14 @@ fieldset.fgroup > legend + * { clear: both; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+/* Hộp thoại gửi câu hỏi cho chuyên gia */
+.dialog { border: 1px solid rgba(128,128,128,.35); border-radius: 12px; padding: 20px;
+  width: min(460px, calc(100vw - 32px)); background: Canvas; color: CanvasText; }
+.dialog::backdrop { background: rgba(0,0,0,.45); }
+.dialog h3 { margin: 0 0 6px; }
+.dlg-field { display: block; margin: 14px 0 4px; font-weight: 600; font-size: .9rem; }
+.dialog textarea, .dialog input[type="text"] { width: 100%; box-sizing: border-box; padding: 8px 10px;
+  border: 1px solid rgba(128,128,128,.5); border-radius: 8px; font: inherit; background: transparent; color: inherit; }
+.dlg-check { display: flex; gap: 8px; align-items: flex-start; margin-top: 14px; font-size: .9rem; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.form-error { color: #c0392b; font-size: .9rem; margin: 12px 0 0; }

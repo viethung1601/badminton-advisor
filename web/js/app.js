@@ -226,6 +226,93 @@
     els.input.focus();
   });
 
+  /* ---------- Hỏi chuyên gia (POST /ask-expert) ---------- */
+  var ex = {
+    open: document.getElementById('expert-open'),
+    dlg: document.getElementById('expert-dialog'),
+    form: document.getElementById('expert-form'),
+    q: document.getElementById('expert-question'),
+    did: document.getElementById('expert-discord'),
+    consent: document.getElementById('expert-consent'),
+    err: document.getElementById('expert-error'),
+    cancel: document.getElementById('expert-cancel'),
+    submit: document.getElementById('expert-submit')
+  };
+  var EXPERT_TIMEOUT_MS = 20000;
+  var expertBusy = false;
+
+  function expertError(msg) {
+    ex.err.textContent = msg;
+    ex.err.hidden = !msg;
+  }
+
+  ex.open.addEventListener('click', function () {
+    if (!sessionId) {   // server chỉ nhận khi phiên chat đã tồn tại
+      addMessage('error', '<p>Hãy trò chuyện với AI ít nhất một lượt trước, rồi gửi câu hỏi cho chuyên gia nhé.</p>');
+      return;
+    }
+    expertError('');
+    if (!ex.q.value.trim()) ex.q.value = lastUserText.slice(0, 500);
+    ex.dlg.showModal();
+    ex.q.focus();
+  });
+
+  ex.cancel.addEventListener('click', function () { ex.dlg.close(); });
+
+  ex.form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (expertBusy) return;
+    var question = ex.q.value.trim();
+    var discordId = ex.did.value.trim();
+    if (!question) { expertError('Hãy nhập câu hỏi.'); return; }
+    expertError('');
+    expertBusy = true;
+    ex.submit.disabled = true;
+    ex.submit.textContent = 'Đang gửi...';
+
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, EXPERT_TIMEOUT_MS);
+
+    fetch(API_BASE + '/ask-expert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: question, discord_id: discordId, session_id: sessionId }),
+      signal: ctrl.signal
+    })
+      .then(function (res) {
+        if (res.ok) return res.json();
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          var err = new Error('HTTP ' + res.status);
+          err.status = res.status;
+          err.detail = typeof body.detail === 'string' ? body.detail : '';
+          throw err;
+        });
+      })
+      .then(function () {
+        ex.q.value = '';
+        ex.consent.checked = false;
+        ex.dlg.close();
+        addMessage('bot', '<p>Mình đã chuyển câu hỏi của bạn cho chuyên gia. Hãy tham gia server Discord và theo dõi kênh #hỏi-đáp để xem câu trả lời.</p>');
+        setStatus(true);
+      })
+      .catch(function (err) {
+        if (err.status === 404) expertError('Phiên trò chuyện đã hết hạn. Hãy hỏi AI một câu mới rồi gửi lại.');
+        else if (err.status === 422) expertError('Discord ID hoặc câu hỏi chưa hợp lệ. ID gồm 17-20 chữ số.');
+        else if (err.status === 429) expertError(err.detail || 'Bạn đã gửi tối đa số câu hỏi cho chuyên gia trong phiên này.');
+        else if (err.status === 502) expertError('Chưa gửi được câu hỏi. Bạn thử lại sau ít giây nhé.');
+        else if (err.status === 503) expertError('Tính năng hỏi chuyên gia tạm thời chưa khả dụng.');
+        else if (err.status) expertError('Không gửi được (mã lỗi ' + err.status + ').');
+        else if (err.name === 'AbortError') expertError('Máy chủ phản hồi quá lâu. Bạn thử lại nhé.');
+        else expertError('Không kết nối được máy chủ. Kiểm tra lại rồi thử lại.');
+      })
+      .then(function () {
+        clearTimeout(timer);
+        expertBusy = false;
+        ex.submit.disabled = false;
+        ex.submit.textContent = 'Gửi';
+      });
+  });
+  
   /* ---------- Trạng thái server (GET /health) ---------- */
   function setStatus(ok) {
     els.dot.className = 'dot ' + (ok ? 'dot-ok' : 'dot-bad');

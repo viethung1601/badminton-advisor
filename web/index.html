@@ -123,8 +123,8 @@
         </div>
         <div class="note-card">
           <strong>Hỏi chuyên gia</strong>
-          <p>Khi AI không tìm được câu trả lời, bạn sẽ có thể gửi câu hỏi cho người am hiểu cầu lông.</p>
-          <span class="badge">Sắp có</span>
+          <p>Khi AI chưa trả lời được, bạn có thể gửi câu hỏi cho chuyên gia. Câu trả lời xuất hiện trong server Discord của dự án.</p>
+          <button type="button" class="btn btn-primary btn-sm" id="expert-open">Gửi cho chuyên gia</button>
         </div>
         <button type="button" class="btn btn-ghost btn-sm" id="chat-reset">Cuộc trò chuyện mới</button>
       </aside>
@@ -138,6 +138,32 @@
         </form>
       </div>
     </div>
+    <dialog class="dialog" id="expert-dialog" aria-labelledby="expert-title">
+      <form id="expert-form">
+        <h3 id="expert-title">Gửi câu hỏi cho chuyên gia</h3>
+        <p class="muted small">
+          Bước 1: <a href="https://discord.gg/5uzeS5kxw" target="_blank" rel="noopener noreferrer">tham gia server Discord</a>.
+          Chuyên gia sẽ trả lời ở kênh <strong>#hỏi-đáp</strong> và gắn thẻ bạn.
+        </p>
+        <label class="dlg-field" for="expert-question">Câu hỏi của bạn</label>
+        <textarea id="expert-question" rows="4" maxlength="500" required></textarea>
+        <label class="dlg-field" for="expert-discord">Discord ID của bạn (dãy 17-20 chữ số)</label>
+        <input id="expert-discord" type="text" inputmode="numeric" pattern="[0-9]{17,20}" maxlength="20" required autocomplete="off">
+        <p class="muted small">
+          Cách lấy: Discord → User Settings → Advanced → bật Developer Mode.
+          Sau đó chuột phải vào tên mình → Copy User ID.
+        </p>
+        <label class="dlg-check">
+          <input type="checkbox" id="expert-consent" required>
+          <span>Mình đồng ý chia sẻ câu hỏi và Discord ID này với chuyên gia. Câu hỏi và câu trả lời có thể hiện công khai trong server.</span>
+        </label>
+        <p class="form-error" id="expert-error" role="alert" hidden></p>
+        <div class="dlg-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="expert-cancel">Hủy</button>
+          <button type="submit" class="btn btn-primary btn-sm" id="expert-submit">Gửi</button>
+        </div>
+      </form>
+    </dialog>
   </section>
 
   <!-- ============ TRA CỨU GEAR ============ -->
