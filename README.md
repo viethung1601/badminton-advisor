@@ -1,44 +1,51 @@
-# badminton-advisor
+# Badminton Advisor
 
-# Who are the users of BADMINTON ADVISOR?
-# For Beginner, Intermediate and Advanced Players, who want to upgrade Badminton's Gears but still consider which racket, shoes or shuttles are suitable for them. 
+A gear advisor for badminton players. Currently it recommends rackets; shoes and shuttles are planned.
 
-# How can the users give filter to the app? 
-# Self-estimate Badminton's level (in the future the app will include also the function, that users can import their videos to let the app estimate), Play-style (aggressive attack, attack, control, defense, balance...), budget, power of grip, colors, etc...
+## Who is it for?
 
-# What do the users claim from the app? 
-# 3 best options for each item, that users want to ask for recommendations
+Beginner, intermediate and advanced players who want to upgrade their gear but are unsure which racket, shoes or shuttles suit them.
 
-# Judge the limit:
-# Recommender là content-based ranking (khoảng cách Manhattan có trọng số), không huấn luyện từ dữ liệu.
-# Trọng số và ngưỡng min_score do mình đặt dựa trên hiểu biết cầu lông, chưa được kiểm chứng bằng phản hồi người dùng.
-# Dữ liệu nhỏ (26 vợt): một số tổ hợp level × style × balance còn trống, khi đó status = "approximate".
-# Nhiều vợt có thể hoà điểm 1.0; thứ tự hiện chỉ theo giá tăng dần.
+## How do users filter?
 
-## Đánh giá agent
+Self-estimated level (a future version may estimate it from uploaded videos), play style (aggressive attack, attack, control, defense, balance...), budget, grip strength, colors, etc.
 
-Bộ test `src/eval_agent.py`: 18 câu hỏi, 6 nhóm (đủ thông tin, thiếu thông tin,
-hỏi theo tên vợt, khoảng giá trị, ngân sách quá thấp, lạc đề), mỗi câu chạy 5 lần.
-Kiểm tra theo dữ kiện, không so từng chữ: tool có được gọi không, tham số đúng không,
-tên vợt và con số trong câu trả lời có nằm trong kết quả tool (hoặc câu hỏi) không.
+## What does the user get?
 
-**Kết quả:** 90/90 lần chạy đạt. Lỗi thật chưa chắc bằng 0; với 90 lần chạy chỉ có thể
-nói tỉ lệ lỗi trên bộ câu này thấp (khoảng dưới 3%).
+The 3 best options for the item they ask about.
 
-**Lỗi tìm thấy và đã sửa nhờ bộ test:**
-- Ngân sách thấp: bot tự nêu mức ngân sách không có trong dữ liệu (~9% số lần, nhóm E).
-  Sửa theo 3 vòng: dặn trong prompt, đưa giá thấp nhất vào kết quả tool, rồi đưa cả
-  thông tin vợt đó (level, style, is_exact) để bot không gọi vợt gần đúng là "phù hợp".
-- Tra theo tên: tool tìm hụt khi người dùng gõ kèm hãng. Sửa truy vấn SQL.
+## Limits of the recommender
 
-**Giới hạn:**
-- "Đủ gần" dựa trên MIN_SCORE = 0.5 và trọng số do tác giả tự đặt, không phải sự thật khách quan.
-  Với ngưỡng này, vợt cho trình độ thấp hơn có thể lọt vào mục "gần nhất" của người chơi nâng cao.
-- Script kiểm tra con số và tên vợt, chưa kiểm tra lời mô tả. Lỗi diễn đạt (như gọi vợt
-  gần đúng là "phù hợp") chỉ phát hiện khi đọc câu trả lời thật.
+- Content-based ranking (weighted Manhattan distance); no model is trained on data.
+- The weights and the `min_score` threshold are set by the author from badminton knowledge and have not been validated with user feedback.
+- Small dataset (26 rackets): some level × style × balance combinations are empty. In that case `status = "approximate"`.
+- Many rackets can tie at 1.0; the order currently depends only on ascending price.
 
-## đánh giá model embedding cho câu trả lời dạng text
-  - Truy xuất: 10/11 trên bộ 11 câu tự viết. Lỗi còn lại: ‘nhẹ đầu hợp với ai’ đưa k02 xuống hạng 5.”
+## Agent evaluation
+
+The test suite `src/eval_agent.py` has 18 questions in 6 groups (complete information, missing information, lookup by racket name, value ranges, budget too low, off-topic), each run 5 times. It checks facts, not exact wording: whether the tool was called, whether the arguments are correct, and whether racket names and numbers in the answer appear in the tool result (or in the question).
+
+**Result:** 90/90 runs passed. This does not mean the true error rate is zero; with 90 runs we can only say the error rate on this question set is low (roughly under 3%).
+
+**Bugs found and fixed thanks to the test suite:**
+- Low budget: the bot stated a budget level that is not in the data (~9% of runs, group E). Fixed in 3 rounds: a prompt instruction, then adding the lowest price to the tool result, then adding that racket's details (level, style, `is_exact`) so the bot no longer calls an approximate match "suitable".
+- Lookup by name: the tool missed when the user typed the brand together with the name. Fixed the SQL query.
+
+**Limits:**
+- "Close enough" depends on `MIN_SCORE = 0.5` and author-chosen weights, not on an objective truth. With this threshold, a racket for a lower level can appear in the "closest" list of an advanced player.
+- The script checks numbers and racket names, not the wording of descriptions. Wording errors (such as calling an approximate racket "suitable") only show up when reading real answers.
+
+## Embedding model evaluation
+
+- Retrieval: 10/11 on a self-written set of 11 questions. The remaining failure: "nhẹ đầu hợp với ai" ("who suits a head-light racket") ranks k02 fifth.
+
+## Answer correctness against knowledge.csv
+
+- Groups A-F: 95/95 after adding RAG (same as before RAG, so no regression on this set).
+- Group G: 40/40 on 8 questions × 5 runs, after fixes to k02, k09 and the tool description.
+- Retrieval alone (`probe_eval`): 10/11. The remaining failure is "nhẹ đầu hợp với ai", which ranks k02 fifth.
+- Note: D2 fluctuates between 7/10 and 10/10 across runs, even before RAG. A before/after baseline exists only for G3; the other groups have none.
+- Overall: 135/135 does not mean zero errors. The knowledge source is shop blogs, and there are no real users yet.
 
 ## Ask an expert (n8n + Discord)
 
@@ -95,11 +102,3 @@ FastAPI always calls `/webhook/` (the workflow must be Active), never `/webhook-
 - No authentication; the 3-questions-per-session limit can be bypassed by creating a new session.
 - The local n8n webhook is not authenticated.
 - The expert's reply path back to the user is manual.
-
-## đo câu trả lời của agent có đúng hay không dựa trên nguồn kiến thức được định nghĩa trong knowledge.csv
-- Nhóm A-F: 95/95 sau khi thêm RAG (cùng mốc trước RAG, nên không hồi quy trên bộ này).
-- Nhóm G: 40/40 trên 8 câu x 5 lượt, sau các chỉnh sửa k02, k09 và mô tả tool.
-- Truy xuất riêng (probe_eval): 10/11, lỗi còn lại là “nhẹ đầu hợp với ai” đưa k02 xuống hạng 5.
-- Lưu ý: D2 dao động 7/10 đến 10/10 giữa các lần chạy, kể cả trước RAG. Chỉ có mốc “trước/sau” cho G3, các nhóm khác không có mốc trước.
-- Tổng kết: 135/135 không có nghĩa lỗi = 0, nguồn là blog của các shops, chưa có người dùng thật
-
