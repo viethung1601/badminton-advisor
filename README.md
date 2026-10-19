@@ -39,3 +39,67 @@ nói tỉ lệ lỗi trên bộ câu này thấp (khoảng dưới 3%).
 
 ## đánh giá model embedding cho câu trả lời dạng text
   - Truy xuất: 10/11 trên bộ 11 câu tự viết. Lỗi còn lại: ‘nhẹ đầu hợp với ai’ đưa k02 xuống hạng 5.”
+
+## Ask an expert (n8n + Discord)
+
+Users can send a question to a human expert from the web page. The question goes through n8n into a private Discord channel.
+
+```
+Browser ("Send to expert" button)
+  -> POST /ask-expert (FastAPI)
+  -> n8n webhook /webhook/ask-expert
+  -> HTTP Request -> Discord #expert-inbox
+```
+
+The expert answers publicly in `#hỏi-đáp` and tags the asker (this step is manual).
+
+### Run n8n
+
+```bash
+docker run -d --name n8n -p 5678:5678 \
+  -e GENERIC_TIMEZONE=Europe/Berlin \
+  -e TZ=Europe/Berlin \
+  -v n8n_data:/home/node/.n8n \
+  docker.n8n.io/n8nio/n8n
+```
+
+The volume keeps workflows when the container is stopped or removed. Open http://localhost:5678.
+
+### Import the workflow
+
+1. In n8n: menu `...` -> **Import from File** -> `n8n/ask-expert.workflow.json`.
+2. Open the **HTTP Request** node and replace `https://discord.com/api/webhooks/REDACTED` with the webhook URL of your own Discord channel.
+3. **Save**, then switch the workflow to **Active**.
+
+### Configuration
+
+In `.env` (not committed):
+
+```
+N8N_WEBHOOK_URL=http://localhost:5678/webhook/ask-expert
+```
+
+FastAPI always calls `/webhook/` (the workflow must be Active), never `/webhook-test/`.
+
+### Design decisions
+
+- Sending a message out is triggered by a **user click**, not by an LLM tool, so prompt injection cannot make the system send messages on its own.
+- The server accepts only a numeric Discord ID (17-20 digits) and builds the profile link itself; n8n receives only `question`, `discord_id` and `discord_url`.
+- `allowed_mentions: {parse: []}` blocks @everyone/@role pings.
+- Question text is not logged.
+
+### Known limitations
+
+- The Discord ID is typed by the user and **not verified** (verification would need Discord OAuth2).
+- Chat sessions live in RAM: lost on restart, no multi-worker setup.
+- No authentication; the 3-questions-per-session limit can be bypassed by creating a new session.
+- The local n8n webhook is not authenticated.
+- The expert's reply path back to the user is manual.
+
+## đo câu trả lời của agent có đúng hay không dựa trên nguồn kiến thức được định nghĩa trong knowledge.csv
+- Nhóm A-F: 95/95 sau khi thêm RAG (cùng mốc trước RAG, nên không hồi quy trên bộ này).
+- Nhóm G: 40/40 trên 8 câu x 5 lượt, sau các chỉnh sửa k02, k09 và mô tả tool.
+- Truy xuất riêng (probe_eval): 10/11, lỗi còn lại là “nhẹ đầu hợp với ai” đưa k02 xuống hạng 5.
+- Lưu ý: D2 dao động 7/10 đến 10/10 giữa các lần chạy, kể cả trước RAG. Chỉ có mốc “trước/sau” cho G3, các nhóm khác không có mốc trước.
+- Tổng kết: 135/135 không có nghĩa lỗi = 0, nguồn là blog của các shops, chưa có người dùng thật
+

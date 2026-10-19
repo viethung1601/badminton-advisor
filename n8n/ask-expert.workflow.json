@@ -1,0 +1,66 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ask-expert",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        -176,
+        -32
+      ],
+      "id": "b539bfbf-459d-409d-bdf5-377501a01fb1",
+      "name": "Webhook",
+      "webhookId": "f48bb9fb-f97d-466a-82b8-48806d1e5834"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/REDACTED",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": {{ JSON.stringify(\"**Câu hỏi mới cho chuyên gia**\\n\" + $json.body.question + \"\\nNgười hỏi: <@\" + $json.body.discord_id + \"> (<\" + $json.body.discord_url + \">)\") }},\n  \"allowed_mentions\": { \"parse\": [] }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        48,
+        -32
+      ],
+      "id": "3a107567-ef26-4180-bb17-c9e7ce2fec34",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "48d22893-0117-484d-935a-5707fceeb1ab",
+  "meta": {
+    "instanceId": "6c48114176d5c6d95f5d2413bcac5616cb572f37177203f197fbdd2e75f127ad"
+  },
+  "nodeGroups": [],
+  "id": "ksYnE0T5GbxNeXHw",
+  "tags": []
+}
