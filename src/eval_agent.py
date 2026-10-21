@@ -38,25 +38,34 @@ CASES = [
      "expect": {"kind": "tool", "params": {"level": "intermediate", "play_style": "allround", "max_price": 150,
                                            "stiffness": "flexible", "balance": "head_heavy"}}},
     # B. thiếu thông tin -> phải hỏi lại
-    {"id": "B1", "turns": ["Tư vấn cho mình cây vợt"], "expect": {"kind": "no_tool"}},
-    {"id": "B2", "turns": ["Mình chơi tấn công, ngân sách 120 euro"], "expect": {"kind": "no_tool"}},
-    {"id": "B3", "turns": ["Mình mới chơi, tầm 90 euro, nên mua vợt nào?"], "expect": {"kind": "no_tool"}},
+    {"id": "B1", "turns": ["Tư vấn cho mình cây vợt"],
+        "expect": {"kind": "no_tool"}},
+    {"id": "B2", "turns": ["Mình chơi tấn công, ngân sách 120 euro"], "expect": {
+        "kind": "no_tool"}},
+    {"id": "B3", "turns": [
+        "Mình mới chơi, tầm 90 euro, nên mua vợt nào?"], "expect": {"kind": "no_tool"}},
     # C. vợt ngoài DB -> không được bịa
-    {"id": "C1", "turns": ["Yonex Astrox 99 Pro giá bao nhiêu?"], "expect": {"kind": "tool_name", "tool":"find_racket", "status" : "found"}},
-    {"id": "C2", "turns": ["Vợt Li-Ning Axforce 80 có hợp với mình không?"], "expect": {"kind": "tool_name", "tool":"find_racket","status":"found"}},
-    {"id": "C3", "turns": ["So sánh giúp mình Victor Thruster K 9900 với Astrox 88S"], "expect": {"kind": "tool_name","tool" :"find_racket","status":"not_found"}},
+    {"id": "C1", "turns": ["Yonex Astrox 99 Pro giá bao nhiêu?"], "expect": {
+        "kind": "tool_name", "tool": "find_racket", "status": "found"}},
+    {"id": "C2", "turns": ["Vợt Li-Ning Axforce 80 có hợp với mình không?"],
+        "expect": {"kind": "tool_name", "tool": "find_racket", "status": "found"}},
+    {"id": "C3", "turns": ["So sánh giúp mình Victor Thruster K 9900 với Astrox 88S"], "expect": {
+        "kind": "tool_name", "tool": "find_racket", "status": "not_found"}},
     # D. khoảng giá trị -> gọi tool nhiều lần
     {"id": "D1", "turns": ["Mình trình beginner, tấn công, 120 euro, thân dẻo đến trung bình"],
      "expect": {"kind": "multi", "each": [
-         {"level": "beginner", "play_style": "attack", "max_price": 120, "stiffness": "flexible"},
+         {"level": "beginner", "play_style": "attack",
+             "max_price": 120, "stiffness": "flexible"},
          {"level": "beginner", "play_style": "attack", "max_price": 120, "stiffness": "medium"}]}},
     {"id": "D2", "turns": ["Trình trung bình, tấn công, 150 euro, thân trung bình hoặc cứng đều được"],
      "expect": {"kind": "multi", "each": [
-         {"level": "intermediate", "play_style": "attack", "max_price": 150, "stiffness": "medium"},
+         {"level": "intermediate", "play_style": "attack",
+             "max_price": 150, "stiffness": "medium"},
          {"level": "intermediate", "play_style": "attack", "max_price": 150, "stiffness": "stiff"}]}},
     {"id": "D3", "turns": ["Mình trình trung bình, thiên về kiểm soát, 130 euro, thân dẻo hoặc trung bình"],
      "expect": {"kind": "multi", "each": [
-         {"level": "intermediate", "play_style": "control", "max_price": 130, "stiffness": "flexible"},
+         {"level": "intermediate", "play_style": "control",
+             "max_price": 130, "stiffness": "flexible"},
          {"level": "intermediate", "play_style": "control", "max_price": 130, "stiffness": "medium"}]}},
     # E. ngân sách quá thấp -> no_rackets_in_budget, không bịa
     {"id": "E1", "turns": ["Mình trình beginner, tấn công, ngân sách 10 euro"],
@@ -66,12 +75,15 @@ CASES = [
     {"id": "E3", "turns": ["beginner, đa dụng, budget 5 euro thôi"],
      "expect": {"kind": "tool", "params": {"level": "beginner", "play_style": "allround", "max_price": 5}}},
     {"id": "E4", "turns": ["Mình chơi trình nâng cao, thiên về kiểm soát, ngân sách 10 euro"],
-    "expect": {"kind": "tool", "params": {"level": "advanced", "play_style": "control", "max_price": 10}}},
+     "expect": {"kind": "tool", "params": {"level": "advanced", "play_style": "control", "max_price": 10}}},
     # F. lạc đề -> không gọi tool
-    {"id": "F1", "turns": ["Hôm nay thời tiết Frankfurt thế nào?"], "expect": {"kind": "no_tool"}},
-    {"id": "F2", "turns": ["Viết giúp mình hàm Python đảo ngược chuỗi"], "expect": {"kind": "no_tool"}},
-    {"id": "F3", "turns": ["Giày cầu lông Yonex giá bao nhiêu?"], "expect": {"kind": "no_tool"}},
-        # G. kiến thức (search_knowledge)
+    {"id": "F1", "turns": ["Hôm nay thời tiết Frankfurt thế nào?"], "expect": {
+        "kind": "no_tool"}},
+    {"id": "F2", "turns": [
+        "Viết giúp mình hàm Python đảo ngược chuỗi"], "expect": {"kind": "no_tool"}},
+    {"id": "F3", "turns": ["Giày cầu lông Yonex giá bao nhiêu?"], "expect": {
+        "kind": "no_tool"}},
+    # G. kiến thức (search_knowledge)
     {"id": "G1", "turns": ["Head heavy khác head light thế nào?"],
      "expect": {"kind": "passages_include", "tool": "search_knowledge", "ids": ["k01", "k02"]}},
     {"id": "G2", "turns": ["Vợt cứng có hợp người mới không?"],
@@ -92,6 +104,30 @@ CASES = [
     # G8: phải rẽ sang find_racket
     {"id": "G8", "turns": ["Axforce 80 bao nhiêu tiền?"],
      "expect": {"kind": "tool_name", "tool": "find_racket", "status": "found"}},
+    # H. giày (recommend_shoes)
+    {"id": "H1", "turns": ["Mình là nam, size EU 44, cần giày"],
+     "expect": {"kind": "tool", "params": {"gender": "men", "size_eu": 44},
+                "absent": ["prefer_light", "width", "max_price"]}},
+    {"id": "H2", "turns": ["Giày nữ size 38, mình ưu tiên giày nhẹ"],
+     "expect": {"kind": "tool", "params": {"gender": "women", "size_eu": 38, "prefer_light": True}}},
+    {"id": "H3", "turns": ["Mình nữ, size 38, bàn chân hẹp, tìm giày"],
+     "expect": {"kind": "tool", "params": {"gender": "women", "size_eu": 38, "width": "narrow"}}},
+    {"id": "H4", "turns": ["Nam size 43, bàn chân to ngang, cần giày"],
+     "expect": {"kind": "tool", "params": {"gender": "men", "size_eu": 43, "width": "wide"}}},
+    # thiếu giới tính hoặc size, hoặc size hệ khác -> phải hỏi lại
+    {"id": "H5", "turns": ["Tôi cần giày"], "expect": {"kind": "no_tool"}},
+    {"id": "H6", "turns": ["Mình là nữ, cần giày cầu lông"],
+        "expect": {"kind": "no_tool"}},
+    {"id": "H7", "turns": ["Size 42, tư vấn giày giúp mình"],
+        "expect": {"kind": "no_tool"}},
+    {"id": "H8", "turns": ["Mình nam, size UK 8, cần giày"],
+        "expect": {"kind": "no_tool"}},
+    # không có size -> không bịa
+    {"id": "H9", "turns": ["Giày nam size 50"],
+     "expect": {"kind": "tool_name", "tool": "recommend_shoes", "status": "no_shoes_for_size"}},
+    # không nhầm tool
+    {"id": "H10", "turns": ["Mình trung cấp, thích tấn công, ngân sách 100 euro, cần vợt"],
+     "expect": {"kind": "tool", "params": {"level": "intermediate", "play_style": "attack", "max_price": 100}}},
 ]
 
 NAME_COLUMNS = ("name", "racket", "racket_name", "model")
@@ -106,11 +142,17 @@ def load_names() -> list[str]:
         sys.exit("Không tìm thấy rackets.csv dưới thư mục gốc.")
     with open(path, encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
-        col = next((c for c in NAME_COLUMNS if c in (reader.fieldnames or [])), None)
+        col = next((c for c in NAME_COLUMNS if c in (
+            reader.fieldnames or [])), None)
         if col is None:
             sys.exit(f"Không biết cột tên vợt. Các cột trong {path.name}: {reader.fieldnames}\n"
                      f"Sửa NAME_COLUMNS ở đầu file cho khớp.")
         return [row[col].strip() for row in reader if row[col].strip()]
+
+
+def load_shoe_names() -> list[str]:
+    with open(ROOT / "data" / "raw" / "shoes.csv", encoding="utf-8-sig", newline="") as f:
+        return [r["name"].strip() for r in csv.DictReader(f) if r["name"].strip()]
 
 
 def validate_cases() -> None:
@@ -122,7 +164,8 @@ def validate_cases() -> None:
         for d in dicts:
             for k, v in d.items():
                 if k in agent.ENUM and v not in agent.ENUM[k]:
-                    errors.append(f"{c['id']}: {k}={v!r} không có trong ENUM {agent.ENUM[k]}")
+                    errors.append(
+                        f"{c['id']}: {k}={v!r} không có trong ENUM {agent.ENUM[k]}")
     if errors:
         sys.exit("Sửa CASES cho khớp ENUM:\n  " + "\n  ".join(errors))
 
@@ -187,7 +230,8 @@ def blank_names(text: str, names: list[str]) -> str:
 def prices_in(text: str, names: list[str]) -> set[float]:
     """Mọi số >= 10 trong câu trả lời (sau khi bỏ tên vợt), có đơn vị hay không."""
     t = blank_names(text, names)
-    nums = {float(m.replace(",", ".")) for m in re.findall(r"\d+(?:[.,]\d+)?", t)}
+    nums = {float(m.replace(",", "."))
+            for m in re.findall(r"\d+(?:[.,]\d+)?", t)}
     return {x for x in nums if x >= 10}
 
 
@@ -213,9 +257,11 @@ def check(case, calls, results, answers, names) -> list[str]:
     elif kind == "tool":
         ok = [c for c in calls if match(c["input"], exp["params"])]
         if not ok:
-            fails.append(f"không có lời gọi khớp {exp['params']}; thực tế: {[c['input'] for c in calls]}")
+            fails.append(
+                f"không có lời gọi khớp {exp['params']}; thực tế: {[c['input'] for c in calls]}")
         else:
-            bad = [k for k in exp.get("absent", []) if all(k in c["input"] for c in ok)]
+            bad = [k for k in exp.get("absent", []) if all(
+                k in c["input"] for c in ok)]
             if bad:
                 fails.append(f"điền tham số người dùng không nói: {bad}")
     elif kind == "multi":
@@ -224,12 +270,14 @@ def check(case, calls, results, answers, names) -> list[str]:
                 fails.append(f"thiếu lời gọi {need}")
     elif kind == "tool_name":
         if not any(c["name"] == exp["tool"] for c in calls):
-            fails.append(f"không gọi tool {exp['tool']}; thực tế: {[c['name'] for c in calls]}")
+            fails.append(
+                f"không gọi tool {exp['tool']}; thực tế: {[c['name'] for c in calls]}")
         if "status" in exp and not any(f'"status": "{exp["status"]}"' in r for r in results):
             fails.append(f"tool không trả status {exp['status']}")
     elif kind == "passages_include":
         if not any(c["name"] == exp["tool"] for c in calls):
-            fails.append(f"không gọi tool {exp['tool']}; thực tế: {[c['name'] for c in calls]}")
+            fails.append(
+                f"không gọi tool {exp['tool']}; thực tế: {[c['name'] for c in calls]}")
         for pid in exp["ids"]:
             if not any(f'"id": "{pid}"' in r for r in results):
                 fails.append(f"passages thiếu {pid}")
@@ -250,7 +298,10 @@ def check(case, calls, results, answers, names) -> list[str]:
             allowed_nums |= numbers_in(json.loads(r))
         except json.JSONDecodeError:
             pass
-    allowed_nums |= {float(x.replace(",", ".")) for x in re.findall(r"\d+(?:[.,]\d+)?", user_text)}
+    allowed_nums |= {float(x.replace(",", "."))
+                     for x in re.findall(r"\d+(?:[.,]\d+)?", user_text)}
+    allowed_nums |= {float(x.replace(",", "."))
+                     for x in re.findall(r"\d+(?:[.,]\d+)?", results_text)}
     for p in prices_in(answer, names):
         if not any(abs(p - a) < 0.01 for a in allowed_nums):
             fails.append(f"giá không có trong kết quả tool hoặc câu hỏi: {p}")
@@ -262,7 +313,8 @@ def run_once(case, names) -> dict:
     try:
         for text in case["turns"]:
             messages.append({"role": "user", "content": text})
-            with contextlib.redirect_stdout(io.StringIO()):  # tắt dòng [tool] cho bảng gọn
+            # tắt dòng [tool] cho bảng gọn
+            with contextlib.redirect_stdout(io.StringIO()):
                 answers.append(agent.chat_turn(messages))
         calls, results = get_trace(messages)
         fails = check(case, calls, results, answers, names)
@@ -280,8 +332,9 @@ def main() -> None:
     cases = [c for c in CASES if not groups or c["id"][0] in groups]
 
     validate_cases()
-    names = load_names()
-    print(f"{len(cases)} câu x {runs} lần, {len(names)} vợt trong rackets.csv, model={agent.MODEL}\n")
+    names = load_names() + load_shoe_names()
+
+    print(f"{len(cases)} câu x {runs} lần, {len(names)} items(including rackets + shoes trong rackets.csv + shoes.csv, model={agent.MODEL}\n")
 
     records = []
     for c in cases:
@@ -289,7 +342,8 @@ def main() -> None:
             rec = run_once(c, names)
             rec["run"] = i + 1
             records.append(rec)
-            print(f"{c['id']} lần {i + 1}: {'pass' if rec['passed'] else 'FAIL'}", flush=True)
+            print(
+                f"{c['id']} lần {i + 1}: {'pass' if rec['passed'] else 'FAIL'}", flush=True)
 
     # Bảng theo câu
     print("\n=== Theo câu ===")
@@ -317,7 +371,8 @@ def main() -> None:
             print("  trả lời:", r["answer"][:400].replace("\n", " | "))
 
     out = ROOT / "eval_results.json"
-    out.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+    out.write_text(json.dumps(records, ensure_ascii=False,
+                   indent=2), encoding="utf-8")
     print(f"\nĐã lưu chi tiết vào {out.name}")
 
 

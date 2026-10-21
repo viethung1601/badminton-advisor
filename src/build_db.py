@@ -40,13 +40,16 @@ def main() -> None:
     # Chỉ nạp dòng đã qua kiểm tra, rồi bỏ cột phụ needs_review
     n_bad = int(df["needs_review"].sum())
     if n_bad:
-        print(f"Bỏ qua {n_bad} dòng needs_review (sửa trong rackets.csv rồi chạy lại clean_rackets.py)")
+        print(
+            f"Bỏ qua {n_bad} dòng needs_review (sửa trong rackets.csv rồi chạy lại clean_rackets.py)")
     df = df[~df["needs_review"]].drop(columns="needs_review")
 
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    DB_PATH.unlink(missing_ok=True)         # DB là sản phẩm sinh ra từ CSV -> xây lại từ đầu
+    # DB là sản phẩm sinh ra từ CSV -> xây lại từ đầu
+    DB_PATH.unlink(missing_ok=True)
 
-    with sqlite3.connect(DB_PATH) as conn:   # with = tự commit, lỗi thì tự rollback
+    # with = tự commit, lỗi thì tự rollback
+    with sqlite3.connect(DB_PATH) as conn:
         conn.executescript(SCHEMA)
         conn.executemany(
             "INSERT INTO rackets (racket_id, name, brand, weight_class, balance, stiffness,"
@@ -56,7 +59,8 @@ def main() -> None:
         )
 
         # Kiểm tra bằng SQL: đây cũng là cách bạn sẽ "hỏi" DB ở các bước sau
-        print(f"Đã nạp {conn.execute('SELECT COUNT(*) FROM rackets').fetchone()[0]} vợt vào {DB_PATH}\n")
+        print(
+            f"Đã nạp {conn.execute('SELECT COUNT(*) FROM rackets').fetchone()[0]} vợt vào {DB_PATH}\n")
         print("Số vợt theo level và play_style:")
         for row in conn.execute(
             "SELECT level, play_style, COUNT(*) FROM rackets GROUP BY level, play_style ORDER BY 1, 2"

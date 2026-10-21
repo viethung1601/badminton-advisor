@@ -9,6 +9,8 @@ from knowledge import search_knowledge
 from config import ROOT
 from clean_rackets import ALLOWED
 from recommender import recommend, find_racket
+from clean_shoes import ALLOWED as SHOE_ALLOWED
+from shoe_recommender import recommend_shoes, GENDERS
 
 load_dotenv(ROOT / ".env")
 MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
@@ -76,13 +78,34 @@ TOOLS = [{
         "properties": {"name": {"type": "string", "description": "Tên vợt, ví dụ 'Astrox 99 Pro'."}},
         "required": ["name"],
     },
+    },
+        {
+    "name": "recommend_shoes",
+    "description": (
+        "Gợi ý giày cầu lông từ cơ sở dữ liệu của cửa hàng. Đây là NGUỒN DUY NHẤT để chọn giày. "
+        "Chỉ gọi khi đã biết giới tính (men/women) và size EU. Thiếu một trong hai thì hỏi lại, không đoán. "
+        "Nếu người dùng nói size theo hệ khác (UK, US, cm) thì hỏi size EU, không tự quy đổi. "
+        "prefer_light và width chỉ điền khi người dùng nói rõ."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "gender": {"type": "string", "enum": sorted(GENDERS), "description": "men hoặc women."},
+            "size_eu": {"type": "number", "description": "Size giày hệ EU, ví dụ 42 hoặc 42.5."},
+            "prefer_light": {"type": "boolean", "description": "true nếu người dùng ưu tiên giày nhẹ."},
+            "width": {"type": "string", "enum": sorted(SHOE_ALLOWED["width"]),
+                      "description": "Form: narrow=hẹp, standard=chuẩn, wide=rộng (bàn chân to ngang)."},
+            "max_price": {"type": "number", "description": "Ngân sách tối đa, EUR. Bỏ trống nếu không nói."},
+        },
+        "required": ["gender", "size_eu"],
+    },
     }
 ]
 
     
 
 
-SYSTEM = """Bạn là tư vấn viên vợt cầu lông vui tính. Trả lời bằng ngôn ngữ người dùng đang dùng.
+SYSTEM = """Bạn là tư vấn viên vợt và giày cầu lông vui tính. Trả lời bằng ngôn ngữ người dùng đang dùng. .
 Quy tắc:
 1. Chỉ nhắc đến vợt có trong kết quả của công cụ recommend_racket. Không bịa vợt, giá hay thông số.
 2. Thiếu level, play_style hoặc ngân sách thì hỏi lại, chỉ hỏi một câu ngắn. Đừng đoán.
@@ -95,6 +118,11 @@ Quy tắc:
 6. Câu hỏi giải thích hoặc khái niệm về vợt (head heavy/light, độ cứng, 3U/4U, cỡ cán, độ căng cước, nên chọn loại nào theo trình độ): gọi search_knowledge và CHỈ dùng nội dung trong passages trả về. Không thêm kiến thức ngoài.
 7. Nếu status là no_relevant_knowledge, hoặc các đoạn không thật sự nói về điều được hỏi (chỉ cùng chủ đề), nói thẳng là kho kiến thức chưa có thông tin này. Không tự trả lời bằng kiến thức chung.
 8. Khi trả lời từ passages, nói đây là thông tin theo nguồn (tên trang trong source_url), không trình bày như sự thật tuyệt đối.
+9. Gợi ý giày: gọi recommend_shoes. Cần giới tính (men/women) và size EU; thiếu thì hỏi một câu ngắn, đừng đoán. Giày unisex đã nằm sẵn trong kết quả.
+10. Chỉ nhắc đến giày có trong kết quả recommend_shoes. status no_shoes_for_size: nói thẳng là không có giày cho giới tính và size đó, không nêu giày khác. status no_data_for_criteria: nói là thiếu dữ liệu cho tiêu chí đã chọn.
+11. Nếu excluded_no_data không rỗng, nêu tên các đôi đó và lý do chưa xếp.
+12. Khi nói về độ nhẹ, nêu số gram và size đo (trong reason), không chỉ nói điểm; nhắc là cân nặng chỉ gần đúng (theo note). Nếu note nói chưa có tiêu chí mềm thì nói các đôi đang xếp theo giá.
+13. Chưa có công cụ tra giày theo tên. Hỏi về một đôi cụ thể thì chỉ dùng thông tin nếu nó nằm trong kết quả recommend_shoes, nếu không thì nói chưa hỗ trợ tra giày theo tên. Người hỏi cả vợt và giày thì xử lý từng phần với công cụ riêng.
 """
 
 
@@ -110,9 +138,28 @@ def run_tool(name: str, args: dict) -> tuple[str, bool]:
             return json.dumps({"error": str(e)}), True
 
     if name == "search_knowledge":
-        result = search_knowledge(args["query"])
+        q = str(args.get("query", "")).strip()
+        if not q:
+            return json.dumps({"error": "thiếu query"}), True
+        result = search_knowledge(q)
         return json.dumps(result, ensure_ascii=False), result.get("status") == "error"
-    
+
+    if name == "recommend_shoes":
+        if args.get("gender") not in GENDERS:
+            return json.dumps({"error": f"gender phải là một trong {sorted(GENDERS)}"}), True
+        w = args.get("width")
+        if w is not None and w not in SHOE_ALLOWED["width"]:
+            return json.dumps({"error": f"width={w!r} không hợp lệ, cho phép: {sorted(SHOE_ALLOWED['width'])}"}), True
+        try:
+            mp = args.get("max_price")
+            result = recommend_shoes(
+                gender=args["gender"], size_eu=float(args["size_eu"]),
+                prefer_light=bool(args.get("prefer_light", False)), width=w,
+                max_price=float(mp) if mp is not None else None,
+            )
+        except Exception as e:
+            return json.dumps({"error": str(e)}), True
+        return json.dumps(result, ensure_ascii=False), False
     if name != "recommend_racket":
         return json.dumps({"error": f"tool lạ: {name}"}), True
     

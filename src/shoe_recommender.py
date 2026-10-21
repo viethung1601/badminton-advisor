@@ -11,7 +11,8 @@ from config import DB_PATH
 WIDTH = {"narrow": 0.0, "standard": 0.5, "wide": 1.0}
 # Mức quan trọng (quyết định thiết kế, chưa kiểm chứng với người dùng)
 W_WIDTH, W_LIGHT = 2.0, 1.0
-GENDERS = {"men", "women"}   # người dùng chọn men/women; giày unisex tự được đưa vào
+# người dùng chọn men/women; giày unisex tự được đưa vào
+GENDERS = {"men", "women"}
 
 
 def load_shoes(gender: str, size_eu: float, max_price: float | None) -> pd.DataFrame:
@@ -51,11 +52,13 @@ def recommend_shoes(gender, size_eu, prefer_light=False, width=None,
     excluded = []
     if prefer_light:
         miss = df["weight_g"].isna()
-        excluded += [{"name": n, "reason": "chưa có dữ liệu cân nặng"} for n in df.loc[miss, "name"]]
+        excluded += [{"name": n, "reason": "chưa có dữ liệu cân nặng"}
+                     for n in df.loc[miss, "name"]]
         df = df[~miss]
     if width:
         miss = df["width"].isna()
-        excluded += [{"name": n, "reason": "chưa có dữ liệu độ rộng"} for n in df.loc[miss, "name"]]
+        excluded += [{"name": n, "reason": "chưa có dữ liệu độ rộng"}
+                     for n in df.loc[miss, "name"]]
         df = df[~miss]
 
     if df.empty:
@@ -67,21 +70,29 @@ def recommend_shoes(gender, size_eu, prefer_light=False, width=None,
     df = df.copy()
     parts = []
     if width:
-        parts.append((W_WIDTH, 1 - (df["width"].map(WIDTH) - WIDTH[width]).abs()))
+        parts.append(
+            (W_WIDTH, 1 - (df["width"].map(WIDTH) - WIDTH[width]).abs()))
     if prefer_light:
         lo, hi = df["weight_g"].min(), df["weight_g"].max()
-        light = pd.Series(1.0, index=df.index) if hi == lo else 1 - (df["weight_g"] - lo) / (hi - lo)
+        light = pd.Series(1.0, index=df.index) if hi == lo else 1 - \
+            (df["weight_g"] - lo) / (hi - lo)
         parts.append((W_LIGHT, light))
-    df["score"] = (sum(w * s for w, s in parts) / sum(w for w, _ in parts)) if parts else 1.0
+    df["score"] = (sum(w * s for w, s in parts) /
+                   sum(w for w, _ in parts)) if parts else 1.0
 
-    df = df.sort_values(["score", "price_eur"], ascending=[False, True]).head(top_n)
+    df = df.sort_values(["score", "price_eur"], ascending=[
+                        False, True]).head(top_n)
 
     notes = []
     if prefer_light:
-        notes.append("Độ nhẹ chỉ so sánh trong các đôi còn lại sau khi lọc, và cân nặng hãng công bố "
-                     "ở các size tham chiếu khác nhau nên chỉ gần đúng.")
+        notes.append(
+            "Độ nhẹ chỉ so sánh trong các đôi còn lại sau khi lọc, và cân nặng hãng công bố ""ở các size tham chiếu khác nhau nên chỉ gần đúng.")
     if excluded:
-        notes.append("Một số đôi không được xếp vì thiếu dữ liệu (xem excluded_no_data).")
+        notes.append(
+            "Một số đôi không được xếp vì thiếu dữ liệu (xem excluded_no_data).")
+    if not parts:
+        notes.append(
+            "Bạn chưa chọn tiêu chí nào (độ nhẹ, độ rộng) nên các đôi hòa điểm và xếp theo giá tăng dần.")
 
     return {"status": "ok", "note": " ".join(notes),
             "results": [{"name": r.name, "price_eur": float(r.price_eur), "score": round(float(r.score), 2),
@@ -91,10 +102,11 @@ def recommend_shoes(gender, size_eu, prefer_light=False, width=None,
 
 def explain(r, width, prefer_light) -> str:
     parts = [f"form {r.width}" + (" (đúng)" if width and r.width == width
-                                 else f" (bạn: {width})" if width else "")
+                                  else f" (bạn: {width})" if width else "")
              if isinstance(r.width, str) else "form: không có dữ liệu"]
     if prefer_light:
-        parts.append(f"nặng {r.weight_g:.0f} g (đo ở size EU {r.weight_ref_size_eu:g})")
+        parts.append(
+            f"nặng {r.weight_g:.0f} g (đo ở size EU {r.weight_ref_size_eu:g})")
     return "; ".join(parts)
 
 
@@ -111,6 +123,7 @@ if __name__ == "__main__":
         res = recommend_shoes(**p)
         print(f"[status: {res['status']}]", res["note"])
         for i, x in enumerate(res["results"], 1):
-            print(f"{i}. {x['name']} | {x['price_eur']} EUR | score {x['score']} | {x['reason']}")
+            print(
+                f"{i}. {x['name']} | {x['price_eur']} EUR | score {x['score']} | {x['reason']}")
         for e in res["excluded_no_data"]:
             print(f"   (không xếp) {e['name']}: {e['reason']}")

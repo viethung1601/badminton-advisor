@@ -17,7 +17,7 @@ from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 from agent import chat_turn
 
-WEB_DIR = Path(__file__).resolve().parent.parent / "web" 
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 MAX_MESSAGE_CHARS = 500   # chặn tin nhắn quá dài (tốn token)
 MAX_USER_TURNS = 20       # số lượt người dùng tối đa mỗi session
@@ -26,7 +26,8 @@ MAX_SESSIONS = 100
 load_dotenv(ROOT / ".env")
 N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")   # chỉ đặt trong .env
 MAX_EXPERT_PER_SESSION = 3
-DISCORD_ID_RE = re.compile(r"[0-9]{17,20}")   # [0-9], không dùng \d vì \d nhận cả chữ số Unicode khác
+# [0-9], không dùng \d vì \d nhận cả chữ số Unicode khác
+DISCORD_ID_RE = re.compile(r"[0-9]{17,20}")
 
 app = FastAPI(title="Badminton Advisor")
 
@@ -58,10 +59,12 @@ def _get_session(session_id: str | None) -> tuple[str, Session]:
         _sessions[sid] = Session()
         return sid, _sessions[sid]
 
+
 def _enum(col: str, vals: list[str]) -> list[str]:
     bad = [v for v in vals if v not in ALLOWED[col]]
     if bad:
-        raise HTTPException(status_code=422, detail=f"{col} không hợp lệ : {bad}")
+        raise HTTPException(
+            status_code=422, detail=f"{col} không hợp lệ : {bad}")
     return vals
 
 
@@ -79,6 +82,7 @@ class ChatOut(BaseModel):
 def health():
     return {"status": "ok"}
 
+
 @app.get("/rackets")
 def rackets(
     q: str | None = Query(None, max_length=100),
@@ -95,11 +99,14 @@ def rackets(
     offset: int = Query(0, ge=0),
 ):
     if sort not in SORTS:
-        raise HTTPException(status_code=422, detail=f"sort không hợp lệ: {sorted(SORTS)}")
-    filters = {c: _enum(c,v) for c, v in (
-        ("level", level),("play_style", play_style),("balance", balance),("stiffness", stiffness), ("weight_class", weight_class)
+        raise HTTPException(
+            status_code=422, detail=f"sort không hợp lệ: {sorted(SORTS)}")
+    filters = {c: _enum(c, v) for c, v in (
+        ("level", level), ("play_style", play_style), ("balance",
+                                                       balance), ("stiffness", stiffness), ("weight_class", weight_class)
     )}
     return list_rackets(q=q, brands=brand, filters=filters, min_price=min_price, max_price=max_price, sort=sort, limit=limit, offset=offset)
+
 
 @app.post("/chat", response_model=ChatOut)
 def chat(body: ChatIn):
@@ -110,23 +117,28 @@ def chat(body: ChatIn):
     sid, session = _get_session(body.session_id)
     with session.lock:
         if session.turns >= MAX_USER_TURNS:
-            raise HTTPException(status_code=429, detail="Hội thoại đã đạt giới hạn lượt, hãy bắt đầu hội thoại mới.")
-        working = list(session.messages)          # bản sao: lỗi giữa chừng không làm hỏng session
+            raise HTTPException(
+                status_code=429, detail="Hội thoại đã đạt giới hạn lượt, hãy bắt đầu hội thoại mới.")
+        # bản sao: lỗi giữa chừng không làm hỏng session
+        working = list(session.messages)
         working.append({"role": "user", "content": text})
         try:
             reply = chat_turn(working)
         except Exception as e:
             print(f"[error] {type(e).__name__}: {e}")
-            raise HTTPException(status_code=502, detail="Lỗi khi gọi mô hình, thử lại sau.")
+            raise HTTPException(
+                status_code=502, detail="Lỗi khi gọi mô hình, thử lại sau.")
         session.messages = working                # chỉ ghi khi cả lượt thành công
         session.turns += 1
         session.last_used = time.time()
     return ChatOut(session_id=sid, reply=reply)
 
+
 class ExpertIn(BaseModel):
     question: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
     discord_id: str = Field(min_length=1, max_length=40)
     session_id: str | None = None
+
 
 @app.post("/ask-expert")
 def ask_expert(body: ExpertIn):
@@ -137,32 +149,39 @@ def ask_expert(body: ExpertIn):
     if not DISCORD_ID_RE.fullmatch(discord_id):
         raise HTTPException(status_code=422, detail="Discord ID không hợp lệ.")
     if not N8N_WEBHOOK_URL:
-        raise HTTPException(status_code=503, detail="Tính năng hỏi chuyên gia chưa được cấu hình.")
+        raise HTTPException(
+            status_code=503, detail="Tính năng hỏi chuyên gia chưa được cấu hình.")
 
     with _sessions_lock:   # chỉ tra cứu, không tạo session mới
         session = _sessions.get(body.session_id) if body.session_id else None
     if session is None:
-        raise HTTPException(status_code=404, detail="Phiên không tồn tại hoặc đã hết hạn. Hãy chat lại rồi gửi.")
+        raise HTTPException(
+            status_code=404, detail="Phiên không tồn tại hoặc đã hết hạn. Hãy chat lại rồi gửi.")
 
     with session.lock:
         if session.expert_sent >= MAX_EXPERT_PER_SESSION:
-            raise HTTPException(status_code=429, detail="Bạn đã gửi tối đa số câu hỏi cho chuyên gia trong phiên này.")
+            raise HTTPException(
+                status_code=429, detail="Bạn đã gửi tối đa số câu hỏi cho chuyên gia trong phiên này.")
         try:
             r = httpx.post(
                 N8N_WEBHOOK_URL,
                 json={
                     "question": question,
                     "discord_id": discord_id,
-                    "discord_url": f"https://discord.com/users/{discord_id}",  # server tự ghép, người dùng không chèn được link
+                    # server tự ghép, người dùng không chèn được link
+                    "discord_url": f"https://discord.com/users/{discord_id}",
                 },
                 timeout=10,
             )
             r.raise_for_status()
         except httpx.HTTPError as e:
-            print(f"[error] ask-expert: {type(e).__name__}")   # không log câu hỏi hay email
-            raise HTTPException(status_code=502, detail="Không gửi được câu hỏi, thử lại sau.")
+            # không log câu hỏi hay email
+            print(f"[error] ask-expert: {type(e).__name__}")
+            raise HTTPException(
+                status_code=502, detail="Không gửi được câu hỏi, thử lại sau.")
         session.expert_sent += 1
         session.last_used = time.time()
     return {"status": "sent"}
+
 
 app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")

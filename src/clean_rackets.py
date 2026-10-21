@@ -27,7 +27,8 @@ def main() -> None:
 
     # 1) Chuẩn hóa chuỗi: bỏ khoảng trắng thừa, categorical -> chữ thường
     df["name"] = df["name"].str.strip()
-    df["brand"] = df["brand"].str.strip().str.lower().map(BRAND_MAP).fillna(df["brand"])
+    df["brand"] = df["brand"].str.strip().str.lower().map(
+        BRAND_MAP).fillna(df["brand"])
     for col in ALLOWED:
         df[col] = df[col].str.strip().str.lower() if col != "weight_class" \
             else df[col].str.strip().str.upper()
@@ -47,7 +48,8 @@ def main() -> None:
 
     # 3) Cột nào không có tác dụng phân biệt?
     print("Số giá trị khác nhau mỗi cột:\n", df.nunique().to_string(), "\n")
-    print("Giá (EUR):", df["price_eur"].describe()[["min", "50%", "max"]].to_dict())
+    print("Giá (EUR):", df["price_eur"].describe()
+          [["min", "50%", "max"]].to_dict())
 
     # 4) Thêm id ổn định để sau này làm khóa chính trong SQLite
     df.insert(0, "racket_id", range(1, len(df) + 1))
