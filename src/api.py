@@ -10,12 +10,13 @@ from dotenv import load_dotenv
 from config import ROOT
 from fastapi import FastAPI, HTTPException
 from fastapi import Query
-from catalog import list_rackets, SORTS
 from clean_rackets import ALLOWED
 from pydantic import BaseModel, Field
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 from agent import chat_turn
+from catalog import list_rackets, SORTS, list_shoes, SHOE_SORTS
+from clean_shoes import ALLOWED as SHOE_ALLOWED
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
@@ -60,8 +61,9 @@ def _get_session(session_id: str | None) -> tuple[str, Session]:
         return sid, _sessions[sid]
 
 
-def _enum(col: str, vals: list[str]) -> list[str]:
-    bad = [v for v in vals if v not in ALLOWED[col]]
+def _enum(col: str, vals: list[str], allowed: dict | None = None) -> list[str]:
+    allowed = allowed or ALLOWED
+    bad = [v for v in vals if v not in allowed[col]]
     if bad:
         raise HTTPException(
             status_code=422, detail=f"{col} không hợp lệ : {bad}")
@@ -107,6 +109,29 @@ def rackets(
     )}
     return list_rackets(q=q, brands=brand, filters=filters, min_price=min_price, max_price=max_price, sort=sort, limit=limit, offset=offset)
 
+
+@app.get("/shoes")
+def shoes(
+    q: str | None = Query(None, max_length=100),
+    brand: list[str] = Query(default=[]),
+    gender: list[str] = Query(default=[]),
+    width: list[str] = Query(default=[]),
+    size_eu: float | None = Query(None, ge=30, le=55),
+    min_price: float | None = Query(None, ge=0),
+    max_price: float | None = Query(None, ge=0),
+    max_weight_g: float | None = Query(None, gt=0),
+    sort: str = "price_asc",
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    if sort not in SHOE_SORTS:
+        raise HTTPException(
+            status_code=422, detail=f"sort không hợp lệ: {sorted(SHOE_SORTS)}")
+    filters = {c: _enum(c, v, SHOE_ALLOWED)
+               for c, v in (("gender", gender), ("width", width))}
+    return list_shoes(q=q, brands=brand, filters=filters, size_eu=size_eu, min_price=min_price,
+                      max_price=max_price, max_weight_g=max_weight_g, sort=sort,
+                      limit=limit, offset=offset)
 
 @app.post("/chat", response_model=ChatOut)
 def chat(body: ChatIn):
