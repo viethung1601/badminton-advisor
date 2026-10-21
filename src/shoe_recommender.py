@@ -5,6 +5,7 @@ Chạy từ thư mục gốc:  python src/shoe_recommender.py
 import sqlite3
 
 import pandas as pd
+import json
 
 from config import DB_PATH
 
@@ -14,6 +15,25 @@ W_WIDTH, W_LIGHT = 2.0, 1.0
 # người dùng chọn men/women; giày unisex tự được đưa vào
 GENDERS = {"men", "women"}
 
+def _esc_like(s: str) -> str:
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def find_shoe(name: str, limit: int = 5) -> dict:
+    """Tra giày theo tên (khớp một phần, không phân biệt hoa thường)."""
+    pat = f"%{_esc_like(name.strip())}%"
+    with sqlite3.connect(DB_PATH) as conn:
+        df = pd.read_sql_query(
+            "SELECT name, brand, gender, size_min_eu, size_max_eu, weight_g, weight_ref_size_eu, "
+            "width, price_eur, note FROM shoes "
+            "WHERE name LIKE ? ESCAPE '\\' OR (brand || ' ' || name) LIKE ? ESCAPE '\\' "
+            "ORDER BY price_eur LIMIT ?",
+            conn, params=(pat, pat, limit),
+        )
+    if df.empty:
+        return {"status": "not_found",
+                "note": f"Không có giày nào tên chứa '{name}' trong dữ liệu.", "results": []}
+    return {"status": "found", "note": "", "results": json.loads(df.to_json(orient="records"))}
 
 def load_shoes(gender: str, size_eu: float, max_price: float | None) -> pd.DataFrame:
     """Lọc cứng trong SQL (tham số bằng ?, không ghép chuỗi)."""

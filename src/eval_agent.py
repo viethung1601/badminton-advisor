@@ -128,6 +128,12 @@ CASES = [
     # không nhầm tool
     {"id": "H10", "turns": ["Mình trung cấp, thích tấn công, ngân sách 100 euro, cần vợt"],
      "expect": {"kind": "tool", "params": {"level": "intermediate", "play_style": "attack", "max_price": 100}}},
+    {"id": "H11", "turns": ["Giày Yonex Aerus Z2 giá bao nhiêu?"],
+     "expect": {"kind": "tool_name", "tool": "find_shoe", "status": "found"}},
+    {"id": "H12", "turns": ["Giày Victor P9200 có size 44 không?"],
+     "expect": {"kind": "tool_name", "tool": "find_shoe", "status": "not_found"}},
+    {"id": "H13", "turns": ["SHB 65Z VA Slim nặng bao nhiêu?"],
+     "expect": {"kind": "tool_name", "tool": "find_shoe", "status": "found"}},
 ]
 
 NAME_COLUMNS = ("name", "racket", "racket_name", "model")

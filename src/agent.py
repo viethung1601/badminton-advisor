@@ -10,7 +10,7 @@ from config import ROOT
 from clean_rackets import ALLOWED
 from recommender import recommend, find_racket
 from clean_shoes import ALLOWED as SHOE_ALLOWED
-from shoe_recommender import recommend_shoes, GENDERS
+from shoe_recommender import recommend_shoes, find_shoe, GENDERS
 
 load_dotenv(ROOT / ".env")
 MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
@@ -99,10 +99,21 @@ TOOLS = [{
         },
         "required": ["gender", "size_eu"],
     },
+    },
+        {
+    "name": "find_shoe",
+    "description": (
+        "Tra thông tin một đôi giày cụ thể theo tên (giá, giới tính, khoảng size EU, cân nặng, form) "
+        "trong cơ sở dữ liệu cửa hàng. Dùng khi người dùng hỏi về một đôi giày có tên hoặc một hãng. "
+        "Không dùng để gợi ý giày theo nhu cầu (dùng recommend_shoes)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {"name": {"type": "string", "description": "Tên giày, ví dụ 'Subaxia GT'."}},
+        "required": ["name"],
+    },
     }
 ]
-
-    
 
 
 SYSTEM = """Bạn là tư vấn viên vợt và giày cầu lông vui tính. Trả lời bằng ngôn ngữ người dùng đang dùng. .
@@ -122,7 +133,7 @@ Quy tắc:
 10. Chỉ nhắc đến giày có trong kết quả recommend_shoes. status no_shoes_for_size: nói thẳng là không có giày cho giới tính và size đó, không nêu giày khác. status no_data_for_criteria: nói là thiếu dữ liệu cho tiêu chí đã chọn.
 11. Nếu excluded_no_data không rỗng, nêu tên các đôi đó và lý do chưa xếp.
 12. Khi nói về độ nhẹ, nêu số gram và size đo (trong reason), không chỉ nói điểm; nhắc là cân nặng chỉ gần đúng (theo note). Nếu note nói chưa có tiêu chí mềm thì nói các đôi đang xếp theo giá.
-13. Chưa có công cụ tra giày theo tên. Hỏi về một đôi cụ thể thì chỉ dùng thông tin nếu nó nằm trong kết quả recommend_shoes, nếu không thì nói chưa hỗ trợ tra giày theo tên. Người hỏi cả vợt và giày thì xử lý từng phần với công cụ riêng.
+13. Hỏi về một đôi giày cụ thể theo tên (giá, size, cân nặng, form): gọi find_shoe và chỉ nói thông tin có trong kết quả. status not_found thì nói thẳng cửa hàng không có đôi đó, không đoán. Trường null nghĩa là chưa có dữ liệu, hãy nói đúng như vậy. Cân nặng luôn kèm size đo (weight_ref_size_eu). Người hỏi cả vợt và giày thì xử lý từng phần với công cụ riêng.
 """
 
 
@@ -143,6 +154,15 @@ def run_tool(name: str, args: dict) -> tuple[str, bool]:
             return json.dumps({"error": "thiếu query"}), True
         result = search_knowledge(q)
         return json.dumps(result, ensure_ascii=False), result.get("status") == "error"
+
+    if name == "find_shoe":
+        n = str(args.get("name", "")).strip()
+        if not n:
+            return json.dumps({"error": "thiếu tên giày"}), True
+        try:
+            return json.dumps(find_shoe(n), ensure_ascii=False), False
+        except Exception as e:
+            return json.dumps({"error": str(e)}), True
 
     if name == "recommend_shoes":
         if args.get("gender") not in GENDERS:
