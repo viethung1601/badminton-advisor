@@ -3,9 +3,10 @@ import numpy as np
 import pandas as pd
 import hashlib
 from sentence_transformers import SentenceTransformer
+from config import ROOT
 
-CSV_PATH = "data/raw/knowledge.csv"
-EMB_PATH = "data/knowledge_emb.npy"
+CSV_PATH = str(ROOT/"data"/"raw"/"knowledge.csv")
+EMB_PATH = str(ROOT/"data"/"knowledge_emb.npy")
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 MIN_KNOWLEDGE_SCORE = 0.2  # chỉ lọc câu lạc đề; xem phần giới hạn bên dưới
 _model = None

@@ -167,6 +167,8 @@ FastAPI always calls `/webhook/` (the workflow must be Active), never `/webhook-
 - The expert's reply path back to the user is manual.
 
 ### MCP Server
+- The same tools in agent uses are also exposed as an [MCP](https://modelcontextprotocol.io) server, so any MCP client(for example Claude desktop) can call the catalog and knowledge base without the custom agent.
+
 
 - to run MCP Server:
 ```

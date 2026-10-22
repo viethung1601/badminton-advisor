@@ -7,7 +7,6 @@ from mcp.client.stdio import stdio_client
 
 SERVER = str(Path(__file__).parent / "mcp_server.py")
 
-
 async def main():
     params = StdioServerParameters(command=sys.executable, args=[SERVER])
     async with stdio_client(params) as (read, write):
@@ -40,4 +39,5 @@ async def main():
             kn = await session.call_tool("search_knowledge", {"query": "nặng đầu là gì"})
             print("\nsearch_knowledge isError =", kn.isError)
             print(kn.content[0].text[:300])
+
 asyncio.run(main())
