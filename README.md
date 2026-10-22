@@ -165,3 +165,14 @@ FastAPI always calls `/webhook/` (the workflow must be Active), never `/webhook-
 - No authentication; the 3-questions-per-session limit can be bypassed by creating a new session.
 - The local n8n webhook is not authenticated.
 - The expert's reply path back to the user is manual.
+
+### MCP Server
+
+- to run MCP Server:
+```
+python src/mcp_server,py
+```
+- to test:
+```
+python src/test_mcp_client.py
+```
