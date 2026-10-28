@@ -1,6 +1,6 @@
-"""Recommender giày: lọc cứng theo giới tính + size, xếp hạng mềm theo độ rộng và độ nhẹ.
+"""Shoe recommender: hard filter by gender + size, soft ranking by width and lightness.
 
-Chạy từ thư mục gốc:  python src/shoe_recommender.py
+Run from the project root:  python src/shoe_recommender.py
 """
 import sqlite3
 
@@ -10,9 +10,9 @@ import json
 from config import DB_PATH
 
 WIDTH = {"narrow": 0.0, "standard": 0.5, "wide": 1.0}
-# Mức quan trọng (quyết định thiết kế, chưa kiểm chứng với người dùng)
+# Importance weights (a design decision, not yet validated with real users)
 W_WIDTH, W_LIGHT = 2.0, 1.0
-# người dùng chọn men/women; giày unisex tự được đưa vào
+# the user picks men/women; unisex shoes are included automatically
 GENDERS = {"men", "women"}
 
 def _esc_like(s: str) -> str:
@@ -20,7 +20,7 @@ def _esc_like(s: str) -> str:
 
 
 def find_shoe(name: str, limit: int = 5) -> dict:
-    """Tra giày theo tên (khớp một phần, không phân biệt hoa thường)."""
+    """Look up shoes by name (partial match, case-insensitive)."""
     pat = f"%{_esc_like(name.strip())}%"
     with sqlite3.connect(DB_PATH) as conn:
         df = pd.read_sql_query(
@@ -32,11 +32,11 @@ def find_shoe(name: str, limit: int = 5) -> dict:
         )
     if df.empty:
         return {"status": "not_found",
-                "note": f"Không có giày nào tên chứa '{name}' trong dữ liệu.", "results": []}
+                "note": f"No shoe whose name contains '{name}' in the data.", "results": []}
     return {"status": "found", "note": "", "results": json.loads(df.to_json(orient="records"))}
 
 def load_shoes(gender: str, size_eu: float, max_price: float | None) -> pd.DataFrame:
-    """Lọc cứng trong SQL (tham số bằng ?, không ghép chuỗi)."""
+    """Hard-filter in SQL (parameters via ?, no string concatenation)."""
     sql = ("SELECT shoe_id, name, brand, gender, width, weight_g, weight_ref_size_eu, price_eur "
            "FROM shoes WHERE gender IN (?, 'unisex') AND size_min_eu <= ? AND size_max_eu >= ?")
     params: list = [gender, size_eu, size_eu]
@@ -49,44 +49,44 @@ def load_shoes(gender: str, size_eu: float, max_price: float | None) -> pd.DataF
 
 def recommend_shoes(gender, size_eu, prefer_light=False, width=None,
                     max_price=None, top_n=3) -> dict:
-    """Trả về dict:
-      status   : "ok" | "no_shoes_for_size" (không giày nào đúng giới tính + size [+ ngân sách])
-                 | "no_data_for_criteria" (có giày nhưng đều thiếu dữ liệu cho tiêu chí đã chọn)
-      note     : câu giải thích cho người dùng
-      results  : danh sách giày đã xếp hạng
-      excluded_no_data : giày bị loại vì thiếu dữ liệu cho tiêu chí người dùng chọn
+    """Returns a dict:
+      status   : "ok" | "no_shoes_for_size" (no shoe matches gender + size [+ budget])
+                 | "no_data_for_criteria" (shoes exist but all lack data for the chosen criteria)
+      note     : an explanation for the user
+      results  : list of ranked shoes
+      excluded_no_data : shoes dropped because they lack data for the criteria the user chose
     """
     if gender not in GENDERS:
-        raise ValueError(f"gender phải là một trong {sorted(GENDERS)}")
+        raise ValueError(f"gender must be one of {sorted(GENDERS)}")
     if width is not None and width not in WIDTH:
-        raise ValueError(f"width phải là một trong {sorted(WIDTH)}")
+        raise ValueError(f"width must be one of {sorted(WIDTH)}")
 
     df = load_shoes(gender, size_eu, max_price)
     if df.empty:
         return {"status": "no_shoes_for_size",
-                "note": f"Không có giày nào trong dữ liệu cho {gender}, size EU {size_eu}"
-                        + (f", giá tối đa {max_price} EUR." if max_price is not None else "."),
+                "note": f"No shoes in the data for {gender}, EU size {size_eu}"
+                        + (f", maximum price {max_price} EUR." if max_price is not None else "."),
                 "results": [], "excluded_no_data": []}
 
-    # Thiếu dữ liệu cho tiêu chí người dùng chọn -> không xếp, nhưng nói rõ lý do
+    # Missing data for a criterion the user chose -> don't rank, but say why
     excluded = []
     if prefer_light:
         miss = df["weight_g"].isna()
-        excluded += [{"name": n, "reason": "chưa có dữ liệu cân nặng"}
+        excluded += [{"name": n, "reason": "no weight data yet"}
                      for n in df.loc[miss, "name"]]
         df = df[~miss]
     if width:
         miss = df["width"].isna()
-        excluded += [{"name": n, "reason": "chưa có dữ liệu độ rộng"}
+        excluded += [{"name": n, "reason": "no width data yet"}
                      for n in df.loc[miss, "name"]]
         df = df[~miss]
 
     if df.empty:
         return {"status": "no_data_for_criteria",
-                "note": "Có giày đúng giới tính và size nhưng đều thiếu dữ liệu cho tiêu chí bạn chọn.",
+                "note": "There are shoes for this gender and size, but all lack data for the criteria you chose.",
                 "results": [], "excluded_no_data": excluded}
 
-    # Điểm = trung bình có trọng số của các tiêu chí đang bật, mỗi tiêu chí trong [0, 1]
+    # Score = weighted average of the active criteria, each in [0, 1]
     df = df.copy()
     parts = []
     if width:
@@ -106,13 +106,14 @@ def recommend_shoes(gender, size_eu, prefer_light=False, width=None,
     notes = []
     if prefer_light:
         notes.append(
-            "Độ nhẹ chỉ so sánh trong các đôi còn lại sau khi lọc, và cân nặng hãng công bố ""ở các size tham chiếu khác nhau nên chỉ gần đúng.")
+            "Lightness is only compared among the shoes that remain after filtering, and the weights published by brands are measured "
+            "at different reference sizes, so they are only approximate.")
     if excluded:
         notes.append(
-            "Một số đôi không được xếp vì thiếu dữ liệu (xem excluded_no_data).")
+            "Some pairs were not ranked because of missing data (see excluded_no_data).")
     if not parts:
         notes.append(
-            "Bạn chưa chọn tiêu chí nào (độ nhẹ, độ rộng) nên các đôi hòa điểm và xếp theo giá tăng dần.")
+            "You haven't chosen any criteria (lightness, width), so the pairs tie on score and are sorted by ascending price.")
 
     return {"status": "ok", "note": " ".join(notes),
             "results": [{"name": r.name, "price_eur": float(r.price_eur), "score": round(float(r.score), 2),
@@ -121,22 +122,22 @@ def recommend_shoes(gender, size_eu, prefer_light=False, width=None,
 
 
 def explain(r, width, prefer_light) -> str:
-    parts = [f"form {r.width}" + (" (đúng)" if width and r.width == width
-                                  else f" (bạn: {width})" if width else "")
-             if isinstance(r.width, str) else "form: không có dữ liệu"]
+    parts = [f"fit {r.width}" + (" (match)" if width and r.width == width
+                                 else f" (you: {width})" if width else "")
+             if isinstance(r.width, str) else "fit: no data"]
     if prefer_light:
         parts.append(
-            f"nặng {r.weight_g:.0f} g (đo ở size EU {r.weight_ref_size_eu:g})")
+            f"weight {r.weight_g:.0f} g (measured at EU size {r.weight_ref_size_eu:g})")
     return "; ".join(parts)
 
 
 if __name__ == "__main__":
     cases = {
-        "Nữ 38, ưu tiên nhẹ": dict(gender="women", size_eu=38, prefer_light=True),
-        "Nữ 38, form hẹp": dict(gender="women", size_eu=38, width="narrow"),
-        "Nam 44, form rộng + nhẹ": dict(gender="men", size_eu=44, width="wide", prefer_light=True),
-        "Nam 50 (không có size)": dict(gender="men", size_eu=50),
-        "Nữ 38, không tiêu chí mềm": dict(gender="women", size_eu=38),
+        "Women 38, prefers lightweight": dict(gender="women", size_eu=38, prefer_light=True),
+        "Women 38, narrow fit": dict(gender="women", size_eu=38, width="narrow"),
+        "Men 44, wide fit + lightweight": dict(gender="men", size_eu=44, width="wide", prefer_light=True),
+        "Men 50 (no such size)": dict(gender="men", size_eu=50),
+        "Women 38, no soft criteria": dict(gender="women", size_eu=38),
     }
     for title, p in cases.items():
         print(f"\n=== {title} ===")
@@ -146,4 +147,4 @@ if __name__ == "__main__":
             print(
                 f"{i}. {x['name']} | {x['price_eur']} EUR | score {x['score']} | {x['reason']}")
         for e in res["excluded_no_data"]:
-            print(f"   (không xếp) {e['name']}: {e['reason']}")
+            print(f"   (not ranked) {e['name']}: {e['reason']}")

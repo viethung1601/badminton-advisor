@@ -1,9 +1,9 @@
-/* Badminton Doctor - router + chat (vanilla JS, không cần build) */
+/* Badminton Doctor - router + chat (vanilla JS, no build step needed) */
 (function () {
   'use strict';
 
-  // Để rỗng nếu FastAPI phục vụ cả trang web lẫn API cùng một origin.
-  // Nếu API chạy ở nơi khác, đặt ví dụ: 'http://localhost:8000'
+  // Leave empty if FastAPI serves both the web page and the API from the same origin.
+  // If the API runs elsewhere, set e.g.: 'http://localhost:8000'
   var API_BASE = '';
   var CHAT_TIMEOUT_MS = 60000;
 
@@ -37,7 +37,7 @@
       if (val === undefined) return sessionStorage.getItem(key);
       if (val === null) sessionStorage.removeItem(key);
       else sessionStorage.setItem(key, val);
-    } catch (e) { /* storage bị chặn: bỏ qua */ }
+    } catch (e) { /* storage is blocked: ignore */ }
     return null;
   }
 
@@ -46,7 +46,7 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  // Định dạng nhẹ cho câu trả lời: **đậm**, danh sách "- ", xuống dòng. Luôn escape trước.
+  // Light formatting for replies: **bold**, "- " lists, line breaks. Always escape first.
   function formatReply(text) {
     var lines = escapeHtml(String(text)).split(/\r?\n/);
     var out = [], inList = false;
@@ -77,10 +77,10 @@
     suggestions: document.getElementById('suggestions')
   };
 
-  // session_id do server cấp ở lượt đầu; chỉ giữ trong biến JS => tải lại trang = hội thoại mới
+  // session_id is issued by the server on the first turn; kept only in a JS variable => reloading the page = a new conversation
   var sessionId = null;
   var busy = false;
-  var locked = false;   // true khi server báo hết lượt (429)
+  var locked = false;   // true when the server reports the turn limit (429)
   var greeted = false;
   var lastUserText = '';
 
@@ -97,8 +97,8 @@
     if (greeted) return;
     greeted = true;
     addMessage('bot',
-      '<p>Xin chào, mình là trợ lý của Badminton Doctor.</p>' +
-      '<p>Bạn có thể kể về trình độ, ngân sách và cách chơi của mình, mình sẽ gợi ý vợt, giày hoặc quả cầu phù hợp.</p>');
+      '<p>Hello, I\'m the Badminton Doctor assistant.</p>' +
+      '<p>Tell me about your skill level, budget and play style, and I\'ll suggest suitable rackets, shoes or shuttlecocks.</p>');
   }
 
   function setBusy(v) {
@@ -109,14 +109,14 @@
   }
 
   function showTyping() {
-    return addMessage('bot', '<span class="typing" aria-label="Đang trả lời"><i></i><i></i><i></i></span>');
+    return addMessage('bot', '<span class="typing" aria-label="Replying"><i></i><i></i><i></i></span>');
   }
 
   function showError(msg, canRetry) {
     var node = addMessage('error',
       '<p>' + escapeHtml(msg) + '</p>' +
       '<button type="button" class="btn btn-ghost btn-sm">' +
-      (canRetry ? 'Thử lại' : 'Cuộc trò chuyện mới') + '</button>');
+      (canRetry ? 'Retry' : 'New conversation') + '</button>');
     node.querySelector('button').addEventListener('click', function () {
       if (canRetry) {
         node.remove();
@@ -158,25 +158,25 @@
         if (data.session_id) {
           sessionId = data.session_id;
         }
-        addMessage('bot', formatReply(data.reply != null ? data.reply : '(Không có nội dung trả lời)'));
+        addMessage('bot', formatReply(data.reply != null ? data.reply : '(No reply content)'));
         setStatus(true);
       })
       .catch(function (err) {
         typing.remove();
         if (err.status === 429) {
-          locked = true;   // hết lượt: khóa ô nhập, chỉ còn "Cuộc trò chuyện mới"
-          showError(err.detail || 'Cuộc trò chuyện đã đạt giới hạn lượt.', false);
+          locked = true;   // turn limit reached: lock the input, only "New conversation" remains
+          showError(err.detail || 'This conversation has reached its turn limit.', false);
           setStatus(true);
         } else if (err.status === 502) {
-          showError('Mô hình đang gặp lỗi. Bạn thử lại sau ít giây nhé.', true);
+          showError('The model ran into an error. Please try again in a few seconds.', true);
           setStatus(true);
         } else if (err.status) {
-          showError('Tin nhắn không hợp lệ hoặc quá dài (tối đa 500 ký tự). Mã lỗi ' + err.status + '.', true);
+          showError('The message is invalid or too long (max 500 characters). Error code ' + err.status + '.', true);
           setStatus(true);
         } else if (err.name === 'AbortError') {
-          showError('Máy chủ phản hồi quá lâu. Bạn thử lại nhé.', true);
+          showError('The server took too long to respond. Please try again.', true);
         } else {
-          showError('Không kết nối được máy chủ. Kiểm tra lại rồi thử lại.', true);
+          showError('Could not connect to the server. Check your connection and try again.', true);
           setStatus(false);
         }
       })
@@ -226,7 +226,7 @@
     els.input.focus();
   });
 
-  /* ---------- Hỏi chuyên gia (POST /ask-expert) ---------- */
+  /* ---------- Ask an expert (POST /ask-expert) ---------- */
   var ex = {
     open: document.getElementById('expert-open'),
     dlg: document.getElementById('expert-dialog'),
@@ -247,8 +247,8 @@
   }
 
   ex.open.addEventListener('click', function () {
-    if (!sessionId) {   // server chỉ nhận khi phiên chat đã tồn tại
-      addMessage('error', '<p>Hãy trò chuyện với AI ít nhất một lượt trước, rồi gửi câu hỏi cho chuyên gia nhé.</p>');
+    if (!sessionId) {   // the server only accepts this once a chat session exists
+      addMessage('error', '<p>Please chat with the AI for at least one turn first, then send your question to the expert.</p>');
       return;
     }
     expertError('');
@@ -264,11 +264,11 @@
     if (expertBusy) return;
     var question = ex.q.value.trim();
     var discordId = ex.did.value.trim();
-    if (!question) { expertError('Hãy nhập câu hỏi.'); return; }
+    if (!question) { expertError('Please enter a question.'); return; }
     expertError('');
     expertBusy = true;
     ex.submit.disabled = true;
-    ex.submit.textContent = 'Đang gửi...';
+    ex.submit.textContent = 'Sending...';
 
     var ctrl = new AbortController();
     var timer = setTimeout(function () { ctrl.abort(); }, EXPERT_TIMEOUT_MS);
@@ -292,31 +292,31 @@
         ex.q.value = '';
         ex.consent.checked = false;
         ex.dlg.close();
-        addMessage('bot', '<p>Mình đã chuyển câu hỏi của bạn cho chuyên gia. Hãy tham gia server Discord và theo dõi kênh #hỏi-đáp để xem câu trả lời.</p>');
+        addMessage('bot', '<p>I\'ve passed your question on to the expert. Join the Discord server and follow the #hỏi-đáp channel to see the answer.</p>');
         setStatus(true);
       })
       .catch(function (err) {
-        if (err.status === 404) expertError('Phiên trò chuyện đã hết hạn. Hãy hỏi AI một câu mới rồi gửi lại.');
-        else if (err.status === 422) expertError('Discord ID hoặc câu hỏi chưa hợp lệ. ID gồm 17-20 chữ số.');
-        else if (err.status === 429) expertError(err.detail || 'Bạn đã gửi tối đa số câu hỏi cho chuyên gia trong phiên này.');
-        else if (err.status === 502) expertError('Chưa gửi được câu hỏi. Bạn thử lại sau ít giây nhé.');
-        else if (err.status === 503) expertError('Tính năng hỏi chuyên gia tạm thời chưa khả dụng.');
-        else if (err.status) expertError('Không gửi được (mã lỗi ' + err.status + ').');
-        else if (err.name === 'AbortError') expertError('Máy chủ phản hồi quá lâu. Bạn thử lại nhé.');
-        else expertError('Không kết nối được máy chủ. Kiểm tra lại rồi thử lại.');
+        if (err.status === 404) expertError('The chat session has expired. Ask the AI a new question, then send again.');
+        else if (err.status === 422) expertError('The Discord ID or the question is invalid. An ID has 17-20 digits.');
+        else if (err.status === 429) expertError(err.detail || 'You have reached the maximum number of expert questions for this session.');
+        else if (err.status === 502) expertError('Could not send the question. Please try again in a few seconds.');
+        else if (err.status === 503) expertError('The ask-an-expert feature is temporarily unavailable.');
+        else if (err.status) expertError('Could not send (error code ' + err.status + ').');
+        else if (err.name === 'AbortError') expertError('The server took too long to respond. Please try again.');
+        else expertError('Could not connect to the server. Check your connection and try again.');
       })
       .then(function () {
         clearTimeout(timer);
         expertBusy = false;
         ex.submit.disabled = false;
-        ex.submit.textContent = 'Gửi';
+        ex.submit.textContent = 'Send';
       });
   });
   
-  /* ---------- Trạng thái server (GET /health) ---------- */
+  /* ---------- Server status (GET /health) ---------- */
   function setStatus(ok) {
     els.dot.className = 'dot ' + (ok ? 'dot-ok' : 'dot-bad');
-    els.statusText.textContent = ok ? 'Máy chủ đang hoạt động' : 'Không kết nối được máy chủ';
+    els.statusText.textContent = ok ? 'Server is running' : 'Cannot connect to the server';
   }
 
   function checkHealth() {
@@ -328,7 +328,7 @@
   function onChatShown() {
     greet();
     checkHealth();
-    // Nếu người dùng bấm "Hỏi AI" từ trang gear, điền sẵn câu hỏi (không tự gửi)
+    // If the user clicked "Ask AI" from the gear page, prefill the question (do not send automatically)
     var pre = store('bd_prefill');
     if (pre) {
       store('bd_prefill', null);
@@ -338,7 +338,7 @@
     els.input.focus({ preventScroll: true });
   }
 
-  // Cho các module khác (gear.js) chuyển sang chat với câu hỏi điền sẵn
+  // Lets other modules (gear.js) jump to the chat with a prefilled question
   window.BD = {
     askAI: function (text) {
       store('bd_prefill', text);

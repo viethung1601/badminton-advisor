@@ -15,6 +15,14 @@ For shoes: gender and EU size (hard filters), foot width (narrow / standard / wi
 
 The 3 best options for the item they ask about.
 
+## Language
+
+The whole project (code, comments, UI, prompts, tool descriptions, knowledge base and tests) is in English.
+
+- The agent replies in the language the user writes in (the system prompt says so), so Vietnamese or German questions still work.
+- The knowledge base (`data/raw/knowledge.csv`) is an English translation of Vietnamese shop-blog articles; the `source_url` column still points to the original Vietnamese pages.
+- Retrieval uses the multilingual model `paraphrase-multilingual-MiniLM-L12-v2`, so a Vietnamese question can retrieve an English passage.
+
 ## Setup
 
 Requires Python 3.11+ and an Anthropic API key.
@@ -41,6 +49,7 @@ python src/knowledge.py build
 ```
 
 The first embedding run downloads the embedding model from Hugging Face, so it needs internet and takes a while.
+Whenever you edit `data/raw/knowledge.csv`, run `python src/knowledge.py build` again; search refuses to run on a stale index.
 
 ### Run
 
@@ -49,6 +58,15 @@ uvicorn api:app --app-dir src
 ```
 
 Open http://127.0.0.1:8000. The "Ask an expert" button also needs n8n running (see below); everything else works without it.
+
+## Tests
+
+```powershell
+pip install pytest
+python -m pytest tests -q
+```
+
+`tests/test_golden.py` is a regression test: it runs the recommenders and catalog queries with many inputs and compares the output with `tests/golden/baseline.json`. It is a safety net for refactoring. If you change user-facing text on purpose (for example the `note` or `reason` strings), the test fails; check that only text changed, then regenerate the baseline with `python tests/make_baseline.py`.
 
 ## Limits of the racket recommender
 
@@ -65,6 +83,7 @@ Same two-step idea as the racket recommender, with different criteria:
 - **Soft ranking:** width match and lightness, each scored in [0, 1] and combined with weights (`W_WIDTH = 2`, `W_LIGHT = 1`).
 - **Missing data:** if the user asks for a criterion that a shoe has no data for (for example weight), that shoe is not ranked. It is reported separately in `excluded_no_data` with the reason, so the bot can say so.
 - Data pipeline: `data/raw/shoes.csv` -> `src/clean_shoes.py` (checks column count per row, allowed values, numeric ranges, weight and reference size must come together) -> `data/processed/shoes_clean.csv` -> `src/build_shoes_db.py`.
+- Lookup by name: `find_shoe` returns the details of a specific pair (price, size range, weight, fit) or `not_found`.
 
 ### Limits of the shoe recommender
 
@@ -72,12 +91,15 @@ Same two-step idea as the racket recommender, with different criteria:
 - Manufacturers publish weight at different reference sizes, so weight comparison across brands is approximate.
 - Lightness is min-max normalised among the shoes left after filtering, so it is relative: a single remaining shoe scores 1.0 even if it is not light.
 - Shoes with several widths are stored as separate rows, so one model can fill several of the top 3 slots.
-- No lookup of a shoe by name yet (only `recommend_shoes`).
 - Weights are author-chosen and not validated with user feedback.
 
 ## Agent evaluation
 
-The test suite `src/eval_agent.py` has 18 questions in 6 groups (complete information, missing information, lookup by racket name, value ranges, budget too low, off-topic), each run 5 times. It checks facts, not exact wording: whether the tool was called, whether the arguments are correct, and whether racket names and numbers in the answer appear in the tool result (or in the question).
+The test suite `src/eval_agent.py` has questions in groups A-H, each run several times (`python src/eval_agent.py [runs] [groups]`). It checks facts, not exact wording: whether the tool was called, whether the arguments are correct, and whether racket names and numbers in the answer appear in the tool result (or in the question).
+
+> **Note:** all results below were measured on the original Vietnamese question set, before the project was translated to English. Re-run `python src/eval_agent.py` and update the numbers.
+
+**Groups A-F (racket tools):** 18 questions in 6 groups (complete information, missing information, lookup by racket name, value ranges, budget too low, off-topic), each run 5 times.
 
 **Result:** 90/90 runs passed. This does not mean the true error rate is zero; with 90 runs we can only say the error rate on this question set is low (roughly under 3%).
 
@@ -89,21 +111,30 @@ The test suite `src/eval_agent.py` has 18 questions in 6 groups (complete inform
 - "Close enough" depends on `MIN_SCORE = 0.5` and author-chosen weights, not on an objective truth. With this threshold, a racket for a lower level can appear in the "closest" list of an advanced player.
 - The script checks numbers and racket names, not the wording of descriptions. Wording errors (such as calling an approximate racket "suitable") only show up when reading real answers.
 
+**Latest run (after the English translation):** every group passed with 2 runs per question [fill in: X/Y per group]. Two runs are enough to catch regressions, not to estimate an error rate.
+
+**Changes made because of the test suite:**
+- Question F3 now expects `find_shoe`: it was written before the shoe tools existed.
+- Group D2 ("medium or stiff") was flaky because the prompt never said what to do when the user accepts several values. Rule 14 in the system prompt fixed it (before: 0/2, after: [fill in]/[fill in]).
+- Knowledge retrieval: each passage is embedded with a short title; this fixed a passage that questions saying "beginner" could not find (see Embedding model evaluation).
+
 ## Embedding model evaluation
 
-- Retrieval: 10/11 on a self-written set of 11 questions. The remaining failure: "nhẹ đầu hợp với ai" ("who suits a head-light racket") ranks k02 fifth.
+- Retrieval (`src/probe_eval.py`): 16/16 on a self-written set of 16 questions, including two Vietnamese questions against the English knowledge base.
+- Each passage is embedded together with a short `title` column (for example "How a beginner should choose a racket, depending on arm strength"). Before adding the titles, a passage written about arm strength was missed by questions that say "beginner", because the word never appears in its text. Three extra questions written after the fix confirm it (ranks 1, 2 and 1).
+- Limits: the question set is small and written by the author, so this shows the method works, not how well it generalizes. With `k = 3`, adding relevant passages can push other relevant ones out of the top 3.
 
 ## Answer correctness against knowledge.csv
 
 - Groups A-F: 95/95 after adding RAG (same as before RAG, so no regression on this set).
 - Group G: 40/40 on 8 questions × 5 runs, after fixes to k02, k09 and the tool description.
-- Retrieval alone (`probe_eval`): 10/11. The remaining failure is "nhẹ đầu hợp với ai", which ranks k02 fifth.
+- Retrieval alone (`probe_eval`): 10/11. The remaining failure is "who is a head light racket suitable for?", which ranks k02 fifth.
 - Note: D2 fluctuates between 7/10 and 10/10 across runs, even before RAG. A before/after baseline exists only for G3; the other groups have none.
 - Overall: 135/135 does not mean zero errors. The knowledge source is shop blogs, and there are no real users yet.
 
 ## Shoe evaluation
 
-Group H in `src/eval_agent.py`: 10 questions (complete information, missing gender or size, size given in UK instead of EU, size not in the data, racket request that must not be routed to the shoe tool), each run 4 times.
+Group H in `src/eval_agent.py`: questions on complete information, missing gender or size, size given in UK instead of EU, size not in the data, a racket request that must not be routed to the shoe tool, and lookup of a shoe by name (`find_shoe`). The first 10 questions were each run 4 times.
 
 - **Result:** 39/40. The single failure is a false alarm: when asking for the EU size, the bot gave example sizes ("42, 42.5"), and the script counted them as invented numbers. Read by hand, the answer was correct.
 - No "before" baseline exists for shoes.
@@ -115,13 +146,13 @@ Group H in `src/eval_agent.py`: 10 questions (complete information, missing gend
 Users can send a question to a human expert from the web page. The question goes through n8n into a private Discord channel.
 
 ```
-Browser ("Send to expert" button)
+Browser ("Send to an expert" button)
   -> POST /ask-expert (FastAPI)
   -> n8n webhook /webhook/ask-expert
   -> HTTP Request -> Discord #expert-inbox
 ```
 
-The expert answers publicly in `#hỏi-đáp` and tags the asker (this step is manual).
+The expert answers publicly in `#hỏi-đáp` (the name of the public Q&A channel on the project's Discord server, "questions and answers" in Vietnamese) and tags the asker (this step is manual).
 
 ### Run n8n
 
@@ -166,15 +197,18 @@ FastAPI always calls `/webhook/` (the workflow must be Active), never `/webhook-
 - The local n8n webhook is not authenticated.
 - The expert's reply path back to the user is manual.
 
-### MCP Server
-- The same tools in agent uses are also exposed as an [MCP](https://modelcontextprotocol.io) server, so any MCP client(for example Claude desktop) can call the catalog and knowledge base without the custom agent.
+## MCP server
 
+The same tools the agent uses are also exposed as an [MCP](https://modelcontextprotocol.io) server, so any MCP client (for example Claude Desktop) can call the catalog and knowledge base without the custom agent.
 
-- to run MCP Server:
+Run the server (stdio):
+
+```powershell
+python src/mcp_server.py
 ```
-python src/mcp_server,py
-```
-- to test:
-```
+
+Test it with the bundled client:
+
+```powershell
 python src/test_mcp_client.py
 ```

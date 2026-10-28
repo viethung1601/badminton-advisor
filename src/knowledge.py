@@ -8,17 +8,21 @@ from config import ROOT
 CSV_PATH = str(ROOT/"data"/"raw"/"knowledge.csv")
 EMB_PATH = str(ROOT/"data"/"knowledge_emb.npy")
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
-MIN_KNOWLEDGE_SCORE = 0.2  # chỉ lọc câu lạc đề; xem phần giới hạn bên dưới
+MIN_KNOWLEDGE_SCORE = 0.2  # only filters out off-topic questions; see the limitations below
 _model = None
 
+def _embed_text(df):
+    """What the model sees: a short title (context) followed by the passage text."""
+    return (df["title"] + ". " + df["text"]).tolist()
+
 def _fingerprint(df):
-    return hashlib.sha256("\n".join(df["text"]).encode("utf-8")).hexdigest()
+    return hashlib.sha256("\n".join(_embed_text(df)).encode("utf-8")).hexdigest()
 
 def _get_model():
     global _model
     if _model is None:
         _model = SentenceTransformer(MODEL_NAME)
-        # mặc định 128 token; đoạn dài (k04, k10) sẽ bị cắt đuôi
+        # default is 128 tokens; long passages (k04, k10) would have their tails cut off
         _model.max_seq_length = 256
     return _model
 
@@ -29,19 +33,19 @@ def load_chunks():
 
 def build_index():
     df = load_chunks()
-    emb = _get_model().encode(df["text"].tolist(), normalize_embeddings=True)
+    emb = _get_model().encode(_embed_text(df), normalize_embeddings=True)
     np.save(EMB_PATH, emb)
     open(EMB_PATH + ".hash", "w").write(_fingerprint(df))
-    print(f"Đã tính {emb.shape[0]} vector, mỗi vector {emb.shape[1]} chiều")
+    print(f"Computed {emb.shape[0]} vectors, {emb.shape[1]} dimensions each")
 
 
 def search(query, k=3):
     df = load_chunks()
     emb = np.load(EMB_PATH)
     if open(EMB_PATH + ".hash").read() != _fingerprint(df):
-      raise RuntimeError("CSV đã đổi, chạy lại: python src/knowledge.py build")
+      raise RuntimeError("The CSV has changed, re-run: python src/knowledge.py build")
     q = _get_model().encode([query], normalize_embeddings=True)[0]
-    scores = emb @ q  # vector đã chuẩn hóa nên tích vô hướng = cosine
+    scores = emb @ q  # vectors are normalized, so the dot product = cosine similarity
     top = np.argsort(-scores)[:k]
     return [
         {
@@ -56,23 +60,23 @@ def search(query, k=3):
 
 
 TEST_QUERIES = [
-    "head heavy khác head light thế nào",
-    "vợt cứng có hợp người mới không",
-    "3U với 4U cái nào nặng hơn",
-    "căng dây bao nhiêu thì tốt cho người mới",
-    "Yonex Astrox 99 Pro giá bao nhiêu",
-    "hôm nay thời tiết Frankfurt thế nào",
-    "cách đánh smash cho đúng kỹ thuật",
-    "nên chọn giày cầu lông nào",
-    "Yonex hay Victor tốt hơn",
-    "vợt nặng đầu có dễ mỏi tay không",
+    "what is the difference between head heavy and head light",
+    "is a stiff racket suitable for beginners",
+    "which is heavier, 3U or 4U",
+    "what string tension is good for beginners",
+    "how much is the Yonex Astrox 99 Pro",
+    "what's the weather like in Frankfurt today",
+    "how to do a smash with proper technique",
+    "which badminton shoes should I choose",
+    "which is better, Yonex or Victor",
+    "does a head heavy racket tire your arm easily",
 ]
 
 def search_knowledge(query, k=3):
-    """Tool cho agent: trả các đoạn kiến thức, hoặc báo kho không có."""
+    """Tool for the agent: returns knowledge passages, or says the knowledge base has nothing."""
     try:
         hits = [r for r in search(query, k=k) if r["score"] >= MIN_KNOWLEDGE_SCORE]
-    except Exception as e:  # ví dụ quên chạy build
+    except Exception as e:  # e.g. forgot to run build
         return {"status": "error", "message": str(e)}
     if not hits:
         return {"status": "no_relevant_knowledge"}

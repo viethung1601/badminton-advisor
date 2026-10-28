@@ -15,7 +15,7 @@ async def main():
 
             tools = await session.list_tools()           # tools/list
             for t in tools.tools:
-                print("TOOL:", t.name, "| tham số:", list(
+                print("TOOL:", t.name, "| parameters:", list(
                     t.inputSchema.get("properties", {})))
 
             # tools/call
@@ -24,7 +24,7 @@ async def main():
             print(ok.content[0].text[:400])
 
             bad = await session.call_tool("recommend_shoes", {"gender": "robot", "size_eu": 42})
-            print("\ngender sai isError =", bad.isError)
+            print("\ninvalid gender isError =", bad.isError)
             print(bad.content[0].text[:300])
 
             rk = await session.call_tool("recommend_racket",
@@ -34,7 +34,7 @@ async def main():
 
             bad2 = await session.call_tool("recommend_racket",
                                            {"level": "pro", "play_style": "attack", "max_price": 60})
-            print("\nlevel sai isError =", bad2.isError)
+            print("\ninvalid level isError =", bad2.isError)
 
             kn = await session.call_tool("search_knowledge", {"query": "nặng đầu là gì"})
             print("\nsearch_knowledge isError =", kn.isError)

@@ -1,11 +1,11 @@
-"""Truy vấn danh mục vợt cho GET /rackets. Chỉ SELECT, mọi giá trị đi qua ?."""
+"""Racket and shoe catalog queries for GET /rackets and GET /shoes. SELECT only, every value goes through ?."""
 import sqlite3
 from contextlib import closing
 
 from recommender import DB_PATH
 
 FILTER_COLS = ("level", "play_style", "balance", "stiffness",
-               "weight_class")  # cố định, không từ người dùng
+               "weight_class")  # fixed list, never from the user
 SORTS = {
     "price_asc": "price_eur ASC, name ASC",
     "price_desc": "price_eur DESC, name ASC",
@@ -14,12 +14,12 @@ SORTS = {
 COLUMNS = ("racket_id, name, brand, weight_class, balance, stiffness, "
            "price_eur, level, play_style, source_url, price_checked_at")
 
-SHOE_FILTER_COLS = ("gender", "width")  # cố định, không từ người dùng
+SHOE_FILTER_COLS = ("gender", "width")  # fixed list, never from the user
 SHOE_SORTS = {
     "price_asc": "price_eur ASC, name ASC",
     "price_desc": "price_eur DESC, name ASC",
     "name": "name ASC",
-    # NULL xếp cuối (SQLite coi NULL nhỏ nhất nên phải tách riêng)
+    # NULLs go last (SQLite treats NULL as smallest, so it needs a separate key)
     "weight_asc": "weight_g IS NULL, weight_g ASC, name ASC",
 }
 SHOE_COLUMNS = ("shoe_id, name, brand, gender, size_min_eu, size_max_eu, weight_g, "
@@ -32,7 +32,7 @@ def _escape_like(s: str) -> str:
 
 def list_rackets(*, q=None, brands=None, filters=None, min_price=None, max_price=None,
                  sort="price_asc", limit=50, offset=0) -> dict:
-    """Trả {total, items, brands}. Người gọi phải kiểm tra enum và sort trước."""
+    """Returns {total, items, brands}. The caller must validate enums and sort first."""
     where, params = [], []
     if q and q.strip():
         pat = f"%{_escape_like(q.strip())}%"
@@ -69,7 +69,7 @@ def list_rackets(*, q=None, brands=None, filters=None, min_price=None, max_price
 
 def list_shoes(*, q=None, brands=None, filters=None, size_eu=None, min_price=None,
                max_price=None, max_weight_g=None, sort="price_asc", limit=50, offset=0) -> dict:
-    """Trả {total, items, brands}. Người gọi phải kiểm tra enum và sort trước."""
+    """Returns {total, items, brands}. The caller must validate enums and sort first."""
     where, params = [], []
     if q and q.strip():
         pat = f"%{_escape_like(q.strip())}%"
@@ -93,7 +93,7 @@ def list_shoes(*, q=None, brands=None, filters=None, size_eu=None, min_price=Non
         where.append("price_eur <= ?")
         params.append(max_price)
     if max_weight_g is not None:
-        where.append("weight_g <= ?")   # giày thiếu cân nặng tự bị loại
+        where.append("weight_g <= ?")   # shoes with no weight are excluded automatically
         params.append(max_weight_g)
     w = (" WHERE " + " AND ".join(where)) if where else ""
 

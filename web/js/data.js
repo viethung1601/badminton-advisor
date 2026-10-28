@@ -1,46 +1,46 @@
-/* DỮ LIỆU MẪU - chỉ để dựng giao diện.
-   Tên sản phẩm, hãng và thông số bên dưới là giả lập, không phải sản phẩm thật.
-   Khi backend có endpoint gear, thay bằng dữ liệu thật qua loadGear() trong gear.js. */
+/* SAMPLE DATA - only for building the UI.
+   The product names, brands and specs below are made up, not real products.
+   Once the backend has a gear endpoint, replace this with real data via loadGear() in gear.js. */
 
 window.GEAR_SAMPLE = {
   racket: [
-    { id: 'r1', name: 'Vợt mẫu Falcon 01', brand: 'Hãng A', price: 1450000, balance: 'Nhẹ đầu', flex: 'Dẻo', weight: '5U', style: 'Đánh đôi, phản tạt' },
-    { id: 'r2', name: 'Vợt mẫu Falcon 02', brand: 'Hãng A', price: 2650000, balance: 'Cân bằng', flex: 'Trung bình', weight: '4U', style: 'Toàn diện' },
-    { id: 'r3', name: 'Vợt mẫu Titan 10', brand: 'Hãng B', price: 3200000, balance: 'Nặng đầu', flex: 'Cứng', weight: '3U', style: 'Đánh đơn, tấn công' },
-    { id: 'r4', name: 'Vợt mẫu Titan 20', brand: 'Hãng B', price: 890000, balance: 'Cân bằng', flex: 'Trung bình', weight: '4U', style: 'Mới chơi' },
-    { id: 'r5', name: 'Vợt mẫu Breeze S', brand: 'Hãng C', price: 1980000, balance: 'Nhẹ đầu', flex: 'Trung bình', weight: '5U', style: 'Đánh đôi, tốc độ' },
-    { id: 'r6', name: 'Vợt mẫu Breeze X', brand: 'Hãng C', price: 4100000, balance: 'Nặng đầu', flex: 'Cứng', weight: '3U', style: 'Tấn công mạnh' }
+    { id: 'r1', name: 'Sample racket Falcon 01', brand: 'Brand A', price: 55, balance: 'Head light', flex: 'Flexible', weight: '5U', style: 'Doubles, counter-attack' },
+    { id: 'r2', name: 'Sample racket Falcon 02', brand: 'Brand A', price: 100, balance: 'Even', flex: 'Medium', weight: '4U', style: 'All-round' },
+    { id: 'r3', name: 'Sample racket Titan 10', brand: 'Brand B', price: 120, balance: 'Head heavy', flex: 'Stiff', weight: '3U', style: 'Singles, attack' },
+    { id: 'r4', name: 'Sample racket Titan 20', brand: 'Brand B', price: 35, balance: 'Even', flex: 'Medium', weight: '4U', style: 'Beginner' },
+    { id: 'r5', name: 'Sample racket Breeze S', brand: 'Brand C', price: 75, balance: 'Head light', flex: 'Medium', weight: '5U', style: 'Doubles, speed' },
+    { id: 'r6', name: 'Sample racket Breeze X', brand: 'Brand C', price: 155, balance: 'Head heavy', flex: 'Stiff', weight: '3U', style: 'Hard attack' }
   ],
   shoe: [
-    { id: 's1', name: 'Giày mẫu Glide 1', brand: 'Hãng A', price: 1250000, cushion: 'Êm', grip: 'Bám tốt', width: 'Form rộng', style: 'Mới chơi' },
-    { id: 's2', name: 'Giày mẫu Glide 2', brand: 'Hãng A', price: 2300000, cushion: 'Cân bằng', grip: 'Bám rất tốt', width: 'Form vừa', style: 'Di chuyển nhanh' },
-    { id: 's3', name: 'Giày mẫu Court Pro', brand: 'Hãng B', price: 2950000, cushion: 'Êm', grip: 'Bám rất tốt', width: 'Form vừa', style: 'Chơi nhiều, tập cường độ cao' },
-    { id: 's4', name: 'Giày mẫu Lite', brand: 'Hãng C', price: 790000, cushion: 'Cứng', grip: 'Bám tốt', width: 'Form hẹp', style: 'Nhẹ, phong trào' }
+    { id: 's1', name: 'Sample shoe Glide 1', brand: 'Brand A', price: 48, cushion: 'Soft', grip: 'Good grip', width: 'Wide fit', style: 'Beginner' },
+    { id: 's2', name: 'Sample shoe Glide 2', brand: 'Brand A', price: 88, cushion: 'Balanced', grip: 'Excellent grip', width: 'Standard fit', style: 'Fast movement' },
+    { id: 's3', name: 'Sample shoe Court Pro', brand: 'Brand B', price: 112, cushion: 'Soft', grip: 'Excellent grip', width: 'Standard fit', style: 'Frequent play, high-intensity training' },
+    { id: 's4', name: 'Sample shoe Lite', brand: 'Brand C', price: 30, cushion: 'Firm', grip: 'Good grip', width: 'Narrow fit', style: 'Lightweight, recreational' }
   ],
   shuttle: [
-    { id: 'c1', name: 'Cầu mẫu Training', brand: 'Hãng A', price: 220000, material: 'Lông vịt', speed: 'Tốc độ 77', durability: 'Bền cao', style: 'Tập luyện' },
-    { id: 'c2', name: 'Cầu mẫu Match', brand: 'Hãng B', price: 480000, material: 'Lông ngỗng', speed: 'Tốc độ 77', durability: 'Bền vừa', style: 'Thi đấu' },
-    { id: 'c3', name: 'Cầu mẫu Club', brand: 'Hãng C', price: 310000, material: 'Lông vịt', speed: 'Tốc độ 76', durability: 'Bền vừa', style: 'Phong trào' },
-    { id: 'c4', name: 'Cầu nhựa mẫu', brand: 'Hãng C', price: 150000, material: 'Nhựa', speed: 'Tốc độ 77', durability: 'Bền rất cao', style: 'Tập ngoài trời' }
+    { id: 'c1', name: 'Sample shuttle Training', brand: 'Brand A', price: 8, material: 'Duck feather', speed: 'Speed 77', durability: 'High durability', style: 'Training' },
+    { id: 'c2', name: 'Sample shuttle Match', brand: 'Brand B', price: 18, material: 'Goose feather', speed: 'Speed 77', durability: 'Medium durability', style: 'Match play' },
+    { id: 'c3', name: 'Sample shuttle Club', brand: 'Brand C', price: 12, material: 'Duck feather', speed: 'Speed 76', durability: 'Medium durability', style: 'Recreational' },
+    { id: 'c4', name: 'Sample plastic shuttle', brand: 'Brand C', price: 6, material: 'Plastic', speed: 'Speed 77', durability: 'Very high durability', style: 'Outdoor practice' }
   ]
 };
 
-// Cấu hình bộ lọc cho từng loại. type: 'check' (chọn nhiều), 'price' (giá tối đa) hoặc 'size' (size EU, chỉ giày).
-// Các lựa chọn của 'check' được sinh tự động từ dữ liệu, nên thêm sản phẩm mới là có bộ lọc mới.
+// Filter configuration per category. type: 'check' (multi-select), 'price' (maximum price) or 'size' (EU size, shoes only).
+// The 'check' options are generated automatically from the data, so adding a new product adds a new filter option.
 window.GEAR_FILTERS = {
-  racket: [{ key: 'brand', label: 'Hãng', type: 'check' }, { key: 'level', label: 'Trình độ', type: 'check' },
-  { key: 'play', label: 'Lối chơi', type: 'check' }, { key: 'balance', label: 'Điểm cân bằng', type: 'check' },
-  { key: 'flex', label: 'Độ cứng đũa', type: 'check' }, { key: 'weight', label: 'Trọng lượng', type: 'check' },
-  { key: 'price', label: 'Giá tối đa (€)', type: 'price' }],
-  shoe: [{ key: 'brand', label: 'Hãng', type: 'check' }, { key: 'gender', label: 'Giới tính', type: 'check' },
-  { key: 'width', label: 'Độ rộng form', type: 'check' }, { key: 'size', label: 'Size EU của bạn', type: 'size' },
-  { key: 'price', label: 'Giá tối đa (€)', type: 'price' }],
-  shuttle: [{ key: 'brand', label: 'Hãng', type: 'check' }, { key: 'material', label: 'Chất liệu', type: 'check' },
-  { key: 'speed', label: 'Tốc độ', type: 'check' }, { key: 'durability', label: 'Độ bền', type: 'check' },
-  { key: 'price', label: 'Giá tối đa (mỗi ống)', type: 'price' }]
+  racket: [{ key: 'brand', label: 'Brand', type: 'check' }, { key: 'level', label: 'Level', type: 'check' },
+  { key: 'play', label: 'Play style', type: 'check' }, { key: 'balance', label: 'Balance point', type: 'check' },
+  { key: 'flex', label: 'Shaft stiffness', type: 'check' }, { key: 'weight', label: 'Weight', type: 'check' },
+  { key: 'price', label: 'Max price (€)', type: 'price' }],
+  shoe: [{ key: 'brand', label: 'Brand', type: 'check' }, { key: 'gender', label: 'Gender', type: 'check' },
+  { key: 'width', label: 'Fit width', type: 'check' }, { key: 'size', label: 'Your EU size', type: 'size' },
+  { key: 'price', label: 'Max price (€)', type: 'price' }],
+  shuttle: [{ key: 'brand', label: 'Brand', type: 'check' }, { key: 'material', label: 'Material', type: 'check' },
+  { key: 'speed', label: 'Speed', type: 'check' }, { key: 'durability', label: 'Durability', type: 'check' },
+  { key: 'price', label: 'Max price (per tube)', type: 'price' }]
 };
 
-// Các trường hiển thị dạng tag trên thẻ sản phẩm
+// Fields shown as tags on the product card
 window.GEAR_TAGS = {
   racket: ['balance', 'flex', 'weight'],
   shoe: ['gender', 'widthTag', 'sizeText', 'weightText'],
