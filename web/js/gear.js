@@ -1,20 +1,20 @@
-/* Trang tra cứu gear: tab, bộ lọc, thẻ sản phẩm. */
+/* Gear lookup page: tabs, filters, product cards. */
 (function () {
   'use strict';
 
   var LABELS = {
-    balance: { head_light: 'Nhẹ đầu', even: 'Cân bằng', head_heavy: 'Nặng đầu' },
-    stiffness: { flexible: 'Dẻo', medium: 'Trung bình', stiff: 'Cứng' },
-    level: { beginner: 'Mới chơi', intermediate: 'Trung cấp', advanced: 'Nâng cao' },
-    play: { attack: 'Tấn công', speed: 'Tốc độ', control: 'Kiểm soát', allround: 'Toàn diện' }
+    balance: { head_light: 'Head light', even: 'Even', head_heavy: 'Head heavy' },
+    stiffness: { flexible: 'Flexible', medium: 'Medium', stiff: 'Stiff' },
+    level: { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' },
+    play: { attack: 'Attack', speed: 'Speed', control: 'Control', allround: 'All-round' }
   };
 
   var SHOE_LABELS = {
-    gender: { men: 'Nam', women: 'Nữ', unisex: 'Unisex' },
-    width: { narrow: 'Hẹp', standard: 'Chuẩn', wide: 'Rộng' }
+    gender: { men: 'Men', women: 'Women', unisex: 'Unisex' },
+    width: { narrow: 'Narrow', standard: 'Standard', wide: 'Wide' }
   };
 
-  function lab(group, v) { return LABELS[group][v] || v; }   // mã lạ thì hiện nguyên mã, không mất dữ liệu
+  function lab(group, v) { return LABELS[group][v] || v; }   // unknown code: show the raw code, don't lose data
 
   function toRacket(r) {
     return {
@@ -41,14 +41,14 @@
       brand: r.brand,
       price: r.price_eur,
       gender: SHOE_LABELS.gender[r.gender] || r.gender,
-      width: w,                                   // null = chưa có dữ liệu (không vào bộ lọc)
-      widthTag: w ? 'Form ' + w.toLowerCase() : 'Form: chưa có dữ liệu',
+      width: w,                                   // null = no data yet (not included in the filter)
+      widthTag: w ? w + ' fit' : 'Fit: no data yet',
       sizeMin: r.size_min_eu,
       sizeMax: r.size_max_eu,
       sizeText: 'EU ' + r.size_min_eu + '–' + r.size_max_eu,
       weightText: r.weight_g != null
-        ? Math.round(r.weight_g) + ' g (đo ở size ' + r.weight_ref_size_eu + ')'
-        : 'Cân nặng: chưa có dữ liệu',
+        ? Math.round(r.weight_g) + ' g (measured at size ' + r.weight_ref_size_eu + ')'
+        : 'Weight: no data yet',
       style: null
     };
   }
@@ -58,7 +58,7 @@
     shoe: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16v-4l5-1 3 3h5c3 0 5 1 5 3v1H3z"/><path d="M8 11l1-4"/></svg>',
     shuttle: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="18.5" r="2.5"/><path d="M10 17 6 5M14 17l4-12M12 16V4M8.5 5h7"/></svg>'
   };
-  var CAT_WORD = { racket: 'vợt', shoe: 'giày', shuttle: 'quả cầu' };
+  var CAT_WORD = { racket: 'racket', shoe: 'shoe', shuttle: 'shuttlecock' };
 
   var els = {
     tabs: document.getElementById('gear-tabs'),
@@ -71,9 +71,9 @@
 
   var state = { cat: 'racket', data: null, selected: {}, maxPrice: null, query: '', size: null };
 
-  /* ĐIỂM THAY THẾ: khi backend có endpoint, đổi hàm này, ví dụ
+  /* REPLACEMENT POINT: when the backend has an endpoint, change this function, e.g.
      return fetch('/gear').then(function (r) { return r.json(); });
-     Dữ liệu cần có dạng { racket: [...], shoe: [...], shuttle: [...] } như GEAR_SAMPLE. */
+     The data must have the shape { racket: [...], shoe: [...], shuttle: [...] } like GEAR_SAMPLE. */
   function getJSON(url) {
     return fetch(url).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -104,7 +104,7 @@
     items().forEach(function (it) {
       if (it[key] != null && !seen[it[key]]) { seen[it[key]] = 1; out.push(it[key]); }
     });
-    return out.sort(function (a, b) { return String(a).localeCompare(String(b), 'vi', { numeric: true }); });
+    return out.sort(function (a, b) { return String(a).localeCompare(String(b), 'en', { numeric: true }); });
   }
 
   function priceCeil() {
@@ -113,7 +113,7 @@
     return Math.ceil(m / 10) * 10 || 10;
   }
 
-  /* ----- Bộ lọc ----- */
+  /* ----- Filters ----- */
   function resetFilters() {
     state.selected = {};
     state.maxPrice = priceCeil();
@@ -140,7 +140,7 @@
       }
       else if (f.type === 'size') {
         html += '<div class="fgroup"><label class="flabel" for="size-input">' + f.label + '</label>' +
-          '<input type="number" id="size-input" min="30" max="55" step="0.5" placeholder="Ví dụ 42"' +
+          '<input type="number" id="size-input" min="30" max="55" step="0.5" placeholder="e.g. 42"' +
           (state.size != null ? ' value="' + state.size + '"' : '') + '></div>';
       }
     });
@@ -162,7 +162,7 @@
     return true;
   }
 
-  /* ----- Thẻ sản phẩm ----- */
+  /* ----- Product cards ----- */
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -171,12 +171,12 @@
     var list = items().filter(matches);
     if (!items().length) {
       els.count.textContent = '';
-      els.cards.innerHTML = '<div class="empty">Chưa có dữ liệu ' + CAT_WORD[state.cat] + '.</div>';
+      els.cards.innerHTML = '<div class="empty">No ' + CAT_WORD[state.cat] + ' data yet.</div>';
       return;
     }
-    els.count.textContent = list.length + ' ' + CAT_WORD[state.cat] + ' phù hợp';
+    els.count.textContent = list.length + ' ' + CAT_WORD[state.cat] + (list.length === 1 ? '' : 's') + ' found';
     if (!list.length) {
-      els.cards.innerHTML = '<div class="empty">Chưa có sản phẩm nào khớp bộ lọc. Thử bỏ bớt tiêu chí, hoặc hỏi AI để được gợi ý.</div>';
+      els.cards.innerHTML = '<div class="empty">No products match the filters. Try removing some criteria, or ask the AI for a suggestion.</div>';
       return;
     }
     var tagKeys = window.GEAR_TAGS[state.cat] || [];
@@ -188,19 +188,19 @@
         '<span class="card-brand">' + esc(it.brand) + '</span>' +
         '<h4>' + esc(it.name) + '</h4>' +
         '<div class="tags">' + tags + '</div>' +
-        (it.style ? '<p class="muted small">Phù hợp: ' + esc(it.style) + '</p>' : '') +
+        (it.style ? '<p class="muted small">Suitable for: ' + esc(it.style) + '</p>' : '') +
         '<div class="price">' + fmtPrice(it.price) + '</div>' +
-        (it.checked ? '<p class="muted small">Giá kiểm ngày ' + esc(it.checked) + '</p>' : '') +
+        (it.checked ? '<p class="muted small">Price checked on ' + esc(it.checked) + '</p>' : '') +
         (it.url && /^https?:\/\//.test(it.url)
-          ? '<p class="small"><a href="' + esc(it.url) + '" target="_blank" rel="noopener">Nguồn</a></p>' : '') +
-        '<button type="button" class="btn btn-ghost btn-sm" data-ask="' + esc(it.name) + '">Hỏi AI về món này</button>' +
+          ? '<p class="small"><a href="' + esc(it.url) + '" target="_blank" rel="noopener">Source</a></p>' : '') +
+        '<button type="button" class="btn btn-ghost btn-sm" data-ask="' + esc(it.name) + '">Ask AI about this</button>' +
         '</div></article>';
     }).join('');
   }
 
   function render() { renderFilters(); renderCards(); }
 
-  /* ----- Sự kiện ----- */
+  /* ----- Events ----- */
   els.tabs.addEventListener('click', function (e) {
     var b = e.target.closest('button[data-cat]');
     if (!b || b.getAttribute('data-cat') === state.cat) return;
@@ -243,23 +243,23 @@
 
   els.cards.addEventListener('click', function (e) {
     var b = e.target.closest('button[data-ask]');
-    if (b && window.BD) window.BD.askAI('Cho mình hỏi thêm về ' + b.getAttribute('data-ask') + ': có hợp với mình không?');
+    if (b && window.BD) window.BD.askAI('Tell me more about ' + b.getAttribute('data-ask') + ': is it suitable for me?');
   });
 
-  /* ----- Khởi tạo (tải dữ liệu lần đầu khi mở tab) ----- */
+  /* ----- Initialization (load data the first time the tab opens) ----- */
   var loaded = false;
   window.Gear = {
     show: function () {
       if (loaded) return;
       loaded = true;
-      els.cards.innerHTML = '<div class="empty">Đang tải dữ liệu...</div>';
+      els.cards.innerHTML = '<div class="empty">Loading data...</div>';
       loadGear().then(function (d) {
         state.data = d;
         resetFilters();
         render();
       }).catch(function () {
         loaded = false;
-        els.cards.innerHTML = '<div class="empty">Không tải được dữ liệu gear. Thử tải lại trang.</div>';
+        els.cards.innerHTML = '<div class="empty">Could not load the gear data. Try reloading the page.</div>';
       });
     }
   };

@@ -21,10 +21,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://discord.com/api/webhooks/REDACTED",
+        "url": "https://discord.com/api/webhooks/1560028948950163609/e6T4RnT58hLoB2O4d8Bwu2X-ZRDsYy0hYQHkYlJlsO6IZlixBoFweYFMka--u4ireFvS",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": {{ JSON.stringify(\"**Câu hỏi mới cho chuyên gia**\\n\" + $json.body.question + \"\\nNgười hỏi: <@\" + $json.body.discord_id + \"> (<\" + $json.body.discord_url + \">)\") }},\n  \"allowed_mentions\": { \"parse\": [] }\n}",
+        "jsonBody": "={\n  \"content\": {{ JSON.stringify(\"**New question for the expert**\\n\" + $json.body.question + \"\\nAsked by: <@\" + $json.body.discord_id + \"> (<\" + $json.body.discord_url + \">)\") }},\n  \"allowed_mentions\": { \"parse\": [] }\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -56,7 +56,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "48d22893-0117-484d-935a-5707fceeb1ab",
+  "versionId": "f6080aa8-e8d1-49a6-a878-dc3e5f49a553",
   "meta": {
     "instanceId": "6c48114176d5c6d95f5d2413bcac5616cb572f37177203f197fbdd2e75f127ad"
   },

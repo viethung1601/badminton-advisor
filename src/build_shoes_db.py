@@ -1,7 +1,7 @@
-"""Bước 13b: nạp shoes_clean.csv vào bảng shoes của data/badminton.db
+"""Step 13b: load shoes_clean.csv into the shoes table of data/badminton.db
 
-Chạy: python src/build_shoes_db.py   (cần chạy build_db.py trước để có file DB)
-Chạy lại nhiều lần được: mỗi lần xây lại bảng shoes, không đụng bảng rackets.
+Run: python src/build_shoes_db.py   (run build_db.py first so the DB file exists)
+Safe to re-run: each run rebuilds the shoes table and leaves the rackets table untouched.
 """
 import sqlite3
 
@@ -39,15 +39,15 @@ COLS = ["shoe_id", "name", "brand", "gender", "size_min_eu", "size_max_eu",
 
 def main() -> None:
     if not DB_PATH.exists():
-        raise SystemExit("Chưa có badminton.db. Chạy python src/build_db.py trước.")
+        raise SystemExit("badminton.db not found. Run python src/build_db.py first.")
 
     df = pd.read_csv(OUT_SHOES, encoding="utf-8")
     n_bad = int(df["needs_review"].sum())
     if n_bad:
-        print(f"Bỏ qua {n_bad} dòng needs_review (sửa shoes.csv rồi chạy lại clean_shoes.py)")
+        print(f"Skipping {n_bad} needs_review rows (fix them in shoes.csv, then re-run clean_shoes.py)")
     df = df[~df["needs_review"]]
 
-    # Ô trống trong pandas là NaN; SQLite cần None để lưu thành NULL.
+    # Empty cells are NaN in pandas; SQLite needs None to store them as NULL.
     rows = df[COLS].astype(object).where(df[COLS].notna(), None)
 
     with sqlite3.connect(DB_PATH) as conn:
@@ -56,16 +56,16 @@ def main() -> None:
             f"INSERT INTO shoes ({', '.join(COLS)}) VALUES ({', '.join('?' * len(COLS))})",
             rows.itertuples(index=False, name=None),
         )
-        print(f"Đã nạp {conn.execute('SELECT COUNT(*) FROM shoes').fetchone()[0]} giày\n")
+        print(f"Loaded {conn.execute('SELECT COUNT(*) FROM shoes').fetchone()[0]} shoes\n")
 
-        print("Số giày theo gender và width:")
+        print("Shoes by gender and width:")
         for row in conn.execute(
             "SELECT gender, width, COUNT(*) FROM shoes GROUP BY gender, width ORDER BY 1, 2"
         ):
             print("  ", row)
 
-        # Thử đúng truy vấn lọc cứng sẽ dùng sau này: nữ, size 38
-        print("\nGiày cho nữ size 38 (women hoặc unisex, còn size 38):")
+        # Try the exact hard-filter query we will use later: women, size 38
+        print("\nShoes for women, size 38 (women or unisex, size 38 in range):")
         for row in conn.execute(
             "SELECT name, gender, width, price_eur FROM shoes "
             "WHERE gender IN (?, 'unisex') AND size_min_eu <= ? AND size_max_eu >= ? "

@@ -1,13 +1,13 @@
-"""Bước 4: nạp rackets_clean.csv vào SQLite (data/badminton.db).
+"""Step 4: load rackets_clean.csv into SQLite (data/badminton.db).
 
-Chạy: python src/build_db.py
-Script có thể chạy lại nhiều lần: mỗi lần xây lại DB từ CSV.
+Run: python src/build_db.py
+The script can be re-run any number of times: it rebuilds the DB from the CSV each time.
 """
 import sqlite3
 
 import pandas as pd
 
-from clean_rackets import ALLOWED          # dùng chung "hợp đồng dữ liệu"
+from clean_rackets import ALLOWED          # shared "data contract"
 from config import DB_PATH, PROCESSED
 
 
@@ -15,7 +15,7 @@ def in_list(values: set[str]) -> str:
     return ", ".join(f"'{v}'" for v in sorted(values))
 
 
-# Mỗi cột categorical có một ràng buộc CHECK sinh từ ALLOWED -> DB tự từ chối giá trị sai.
+# Each categorical column has a CHECK constraint generated from ALLOWED -> the DB rejects invalid values itself.
 SCHEMA = f"""
 CREATE TABLE rackets (
     racket_id        INTEGER PRIMARY KEY,
@@ -27,8 +27,8 @@ CREATE TABLE rackets (
     price_eur        REAL    NOT NULL CHECK (price_eur > 0),
     level            TEXT    NOT NULL CHECK (level        IN ({in_list(ALLOWED['level'])})),
     play_style       TEXT    NOT NULL CHECK (play_style   IN ({in_list(ALLOWED['play_style'])})),
-    source_url       TEXT,   -- cho phép trống: chưa có thì để NULL
-    price_checked_at TEXT    -- ngày kiểm tra giá, dạng YYYY-MM-DD
+    source_url       TEXT,   -- may be empty: use NULL when not available yet
+    price_checked_at TEXT    -- date the price was checked, format YYYY-MM-DD
 );
 CREATE INDEX idx_rackets_level ON rackets(level);
 """
@@ -37,18 +37,18 @@ CREATE INDEX idx_rackets_level ON rackets(level);
 def main() -> None:
     df = pd.read_csv(PROCESSED)
 
-    # Chỉ nạp dòng đã qua kiểm tra, rồi bỏ cột phụ needs_review
+    # Only load rows that passed validation, then drop the helper column needs_review
     n_bad = int(df["needs_review"].sum())
     if n_bad:
         print(
-            f"Bỏ qua {n_bad} dòng needs_review (sửa trong rackets.csv rồi chạy lại clean_rackets.py)")
+            f"Skipping {n_bad} needs_review rows (fix them in rackets.csv, then re-run clean_rackets.py)")
     df = df[~df["needs_review"]].drop(columns="needs_review")
 
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    # DB là sản phẩm sinh ra từ CSV -> xây lại từ đầu
+    # the DB is a product generated from the CSV -> rebuild it from scratch
     DB_PATH.unlink(missing_ok=True)
 
-    # with = tự commit, lỗi thì tự rollback
+    # with = auto-commit; on error it rolls back automatically
     with sqlite3.connect(DB_PATH) as conn:
         conn.executescript(SCHEMA)
         conn.executemany(
@@ -58,15 +58,15 @@ def main() -> None:
                 "price_eur", "level", "play_style"]].itertuples(index=False, name=None),
         )
 
-        # Kiểm tra bằng SQL: đây cũng là cách bạn sẽ "hỏi" DB ở các bước sau
+        # Verify with SQL: this is also how you will "ask" the DB questions in later steps
         print(
-            f"Đã nạp {conn.execute('SELECT COUNT(*) FROM rackets').fetchone()[0]} vợt vào {DB_PATH}\n")
-        print("Số vợt theo level và play_style:")
+            f"Loaded {conn.execute('SELECT COUNT(*) FROM rackets').fetchone()[0]} rackets into {DB_PATH}\n")
+        print("Rackets by level and play_style:")
         for row in conn.execute(
             "SELECT level, play_style, COUNT(*) FROM rackets GROUP BY level, play_style ORDER BY 1, 2"
         ):
             print("  ", row)
-        print("\nVợt beginner/intermediate dưới 100 EUR:")
+        print("\nBeginner/intermediate rackets under 100 EUR:")
         for row in conn.execute(
             "SELECT name, brand, price_eur FROM rackets "
             "WHERE level IN ('beginner','intermediate') AND price_eur < 100 ORDER BY price_eur"

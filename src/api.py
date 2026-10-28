@@ -1,4 +1,4 @@
-"""FastAPI bọc chat_turn. Chạy từ thư mục gốc: uvicorn api:app --app-dir src"""
+"""FastAPI wrapper around chat_turn. Run from the project root: uvicorn api:app --app-dir src"""
 import threading
 import time
 import uuid
@@ -20,14 +20,14 @@ from clean_shoes import ALLOWED as SHOE_ALLOWED
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
-MAX_MESSAGE_CHARS = 500   # chặn tin nhắn quá dài (tốn token)
-MAX_USER_TURNS = 20       # số lượt người dùng tối đa mỗi session
+MAX_MESSAGE_CHARS = 500   # reject overly long messages (they cost tokens)
+MAX_USER_TURNS = 20       # maximum user turns per session
 SESSION_TTL_SEC = 30 * 60
 MAX_SESSIONS = 100
 load_dotenv(ROOT / ".env")
-N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")   # chỉ đặt trong .env
+N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")   # set only in .env
 MAX_EXPERT_PER_SESSION = 3
-# [0-9], không dùng \d vì \d nhận cả chữ số Unicode khác
+# [0-9], not \d, because \d also matches other Unicode digits
 DISCORD_ID_RE = re.compile(r"[0-9]{17,20}")
 
 app = FastAPI(title="Badminton Advisor")
@@ -66,7 +66,7 @@ def _enum(col: str, vals: list[str], allowed: dict | None = None) -> list[str]:
     bad = [v for v in vals if v not in allowed[col]]
     if bad:
         raise HTTPException(
-            status_code=422, detail=f"{col} không hợp lệ : {bad}")
+            status_code=422, detail=f"Invalid {col}: {bad}")
     return vals
 
 
@@ -102,7 +102,7 @@ def rackets(
 ):
     if sort not in SORTS:
         raise HTTPException(
-            status_code=422, detail=f"sort không hợp lệ: {sorted(SORTS)}")
+            status_code=422, detail=f"Invalid sort, allowed: {sorted(SORTS)}")
     filters = {c: _enum(c, v) for c, v in (
         ("level", level), ("play_style", play_style), ("balance",
                                                        balance), ("stiffness", stiffness), ("weight_class", weight_class)
@@ -126,25 +126,26 @@ def shoes(
 ):
     if sort not in SHOE_SORTS:
         raise HTTPException(
-            status_code=422, detail=f"sort không hợp lệ: {sorted(SHOE_SORTS)}")
+            status_code=422, detail=f"Invalid sort, allowed: {sorted(SHOE_SORTS)}")
     filters = {c: _enum(c, v, SHOE_ALLOWED)
                for c, v in (("gender", gender), ("width", width))}
     return list_shoes(q=q, brands=brand, filters=filters, size_eu=size_eu, min_price=min_price,
                       max_price=max_price, max_weight_g=max_weight_g, sort=sort,
                       limit=limit, offset=offset)
 
+
 @app.post("/chat", response_model=ChatOut)
 def chat(body: ChatIn):
     text = body.message.strip()
     if not text:
-        raise HTTPException(status_code=400, detail="Tin nhắn trống.")
+        raise HTTPException(status_code=400, detail="Empty message.")
 
     sid, session = _get_session(body.session_id)
     with session.lock:
         if session.turns >= MAX_USER_TURNS:
             raise HTTPException(
-                status_code=429, detail="Hội thoại đã đạt giới hạn lượt, hãy bắt đầu hội thoại mới.")
-        # bản sao: lỗi giữa chừng không làm hỏng session
+                status_code=429, detail="This conversation has reached its turn limit. Please start a new one.")
+        # work on a copy: an error midway must not corrupt the session
         working = list(session.messages)
         working.append({"role": "user", "content": text})
         try:
@@ -152,8 +153,8 @@ def chat(body: ChatIn):
         except Exception as e:
             print(f"[error] {type(e).__name__}: {e}")
             raise HTTPException(
-                status_code=502, detail="Lỗi khi gọi mô hình, thử lại sau.")
-        session.messages = working                # chỉ ghi khi cả lượt thành công
+                status_code=502, detail="Error while calling the model. Please try again later.")
+        session.messages = working                # write back only if the whole turn succeeded
         session.turns += 1
         session.last_used = time.time()
     return ChatOut(session_id=sid, reply=reply)
@@ -170,40 +171,40 @@ def ask_expert(body: ExpertIn):
     question = body.question.strip()
     discord_id = body.discord_id.strip()
     if not question:
-        raise HTTPException(status_code=400, detail="Câu hỏi trống.")
+        raise HTTPException(status_code=400, detail="Empty question.")
     if not DISCORD_ID_RE.fullmatch(discord_id):
-        raise HTTPException(status_code=422, detail="Discord ID không hợp lệ.")
+        raise HTTPException(status_code=422, detail="Invalid Discord ID.")
     if not N8N_WEBHOOK_URL:
         raise HTTPException(
-            status_code=503, detail="Tính năng hỏi chuyên gia chưa được cấu hình.")
+            status_code=503, detail="The ask-an-expert feature is not configured.")
 
-    with _sessions_lock:   # chỉ tra cứu, không tạo session mới
+    with _sessions_lock:   # lookup only, never create a new session
         session = _sessions.get(body.session_id) if body.session_id else None
     if session is None:
         raise HTTPException(
-            status_code=404, detail="Phiên không tồn tại hoặc đã hết hạn. Hãy chat lại rồi gửi.")
+            status_code=404, detail="Session not found or expired. Please chat again, then resubmit.")
 
     with session.lock:
         if session.expert_sent >= MAX_EXPERT_PER_SESSION:
             raise HTTPException(
-                status_code=429, detail="Bạn đã gửi tối đa số câu hỏi cho chuyên gia trong phiên này.")
+                status_code=429, detail="You have reached the maximum number of expert questions for this session.")
         try:
             r = httpx.post(
                 N8N_WEBHOOK_URL,
                 json={
                     "question": question,
                     "discord_id": discord_id,
-                    # server tự ghép, người dùng không chèn được link
+                    # built by the server so users cannot inject their own link
                     "discord_url": f"https://discord.com/users/{discord_id}",
                 },
                 timeout=10,
             )
             r.raise_for_status()
         except httpx.HTTPError as e:
-            # không log câu hỏi hay email
+            # do not log the question or any email
             print(f"[error] ask-expert: {type(e).__name__}")
             raise HTTPException(
-                status_code=502, detail="Không gửi được câu hỏi, thử lại sau.")
+                status_code=502, detail="Could not send the question. Please try again later.")
         session.expert_sent += 1
         session.last_used = time.time()
     return {"status": "sent"}

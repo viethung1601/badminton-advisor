@@ -1,4 +1,4 @@
-"""Agent tối giản: LLM hiểu câu hỏi -> gọi recommend() -> diễn đạt kết quả."""
+"""Minimal agent: the LLM understands the user's question -> calls recommend() -> phrases the results."""
 import json
 import os
 
@@ -14,135 +14,138 @@ from shoe_recommender import recommend_shoes, find_shoe, GENDERS
 
 load_dotenv(ROOT / ".env")
 MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
-MAX_STEPS = 5  # chặn vòng lặp vô hạn
+MAX_STEPS = 5  # prevents an infinite loop within one chat turn
 
-client = anthropic.Anthropic()  # tự đọc ANTHROPIC_API_KEY từ môi trường
+# reads ANTHROPIC_API_KEY from the environment automatically
+client = anthropic.Anthropic()
 
-# Giá trị hợp lệ lấy từ ALLOWED: một nguồn sự thật duy nhất
-ENUM = {k: list(ALLOWED[k]) for k in ("level", "play_style", "balance", "stiffness")}
+# valid values come from ALLOWED: a single source of truth
+ENUM = {k: list(ALLOWED[k])
+        for k in ("level", "play_style", "balance", "stiffness")}
 
 TOOLS = [{
     "name": "recommend_racket",
     "description": (
-        "Gợi ý vợt cầu lông từ cơ sở dữ liệu của cửa hàng. Đây là NGUỒN DUY NHẤT "
-        "để chọn vợt. Chỉ gọi khi đã biết level, play_style và ngân sách. "
-        "Nếu thiếu một trong ba, hãy hỏi lại người dùng thay vì đoán. "
-        "balance và stiffness chỉ điền khi người dùng nói rõ."
+        "Recommend badminton rackets from the shop's database. This is the only source "
+        "for choosing rackets. Only call it when level, play_style and budget are all known. "
+        "If any of the three is missing, ask the user instead of guessing. "
+        "Only fill in balance and stiffness if the user explicitly specifies them."
     ),
     "input_schema": {
         "type": "object",
         "properties": {
             "level": {"type": "string", "enum": ENUM["level"],
-                      "description": "Trình độ người chơi."},
+                      "description": "Player skill level."},
             "play_style": {"type": "string", "enum": ENUM["play_style"],
-                           "description": "Lối chơi: attack=tấn công, speed=nhanh/phản tạt, "
-                                          "control=kiểm soát, allround=đa dụng."},
-            "max_price": {"type": "number", "description": "Ngân sách tối đa, đơn vị EUR."},
+                           "description": "Play style: attack, speed (fast/counter-attacking), "
+                                          "control, allround."},
+            "max_price": {"type": "number", "description": "Maximum budget in EUR."},
             "balance": {"type": "string", "enum": ENUM["balance"],
-                        "description": "Điểm cân bằng. Bỏ trống nếu người dùng không nói."},
+                        "description": "Balance point. Leave empty if the user doesn't mention it."},
             "stiffness": {"type": "string", "enum": ENUM["stiffness"],
-                          "description": "Độ cứng thân vợt. Bỏ trống nếu không nói."},
+                          "description": "Shaft stiffness. Leave empty if the user doesn't mention it."},
         },
         "required": ["level", "play_style", "max_price"],
     },
-    },
-     {
+},
+    {
     "name": "search_knowledge",
     "description": (
-        "Tra cứu kiến thức cầu lông từ kho tài liệu đã kiểm soát: balance "
-        "(head heavy/light), độ cứng đũa vợt, 3U/4U, cỡ cán G, độ căng cước, "
-        "lời khuyên theo trình độ. Dùng cho câu hỏi giải thích hoặc khái niệm. "
-        "KHÔNG dùng để tra giá/tên vợt cụ thể (dùng find_racket) và không dùng "
-        "để gợi ý vợt theo ngân sách (dùng recommend_racket)."
-     ),
-     "input_schema": {
-         "type": "object",
+        "Search badminton knowledge from the curated knowledge base: balance "
+        "(head heavy/light), shaft stiffness, 3U/4U, grip size G, string tension, "
+        "advice by skill level. Use for questions that ask for an explanation or a concept. "
+        "Do NOT use it to look up the price or name of a specific racket (use find_racket), "
+        "and do NOT use it to recommend rackets by budget (use recommend_racket)."
+    ),
+    "input_schema": {
+        "type": "object",
         "properties": {
-           "query": {
-                 "type": "string",
-                 "description": "Câu hỏi của người dùng, giữ nguyên cách gọi (ví dụ 'nặng đầu', 'head heavy')",
-             }
-         },
-         "required": ["query"],
-     },
-     },
+            "query": {
+                "type": "string",
+                "description": "The user's question, kept in their own wording (e.g. 'head heavy', 'nặng đầu').",
+            }
+        },
+        "required": ["query"],
+    },
+},
     {
     "name": "find_racket",
     "description": (
-        "Tra thông tin một cây vợt cụ thể theo tên (giá, trình độ, lối chơi...) "
-        "trong cơ sở dữ liệu cửa hàng. Dùng khi người dùng hỏi về một vợt có tên. "
-        "Không dùng để gợi ý vợt theo nhu cầu."
+        "Look up information about a specific racket by name (price, level, play style...) "
+        "in the shop's database. Use when the user asks about a racket by name. "
+        "Do not use it to recommend rackets based on the user's needs."
     ),
     "input_schema": {
         "type": "object",
-        "properties": {"name": {"type": "string", "description": "Tên vợt, ví dụ 'Astrox 99 Pro'."}},
+        "properties": {"name": {"type": "string", "description": "Racket name, for example 'Astrox 99 Pro'."}},
         "required": ["name"],
     },
-    },
-        {
+},
+    {
     "name": "recommend_shoes",
     "description": (
-        "Gợi ý giày cầu lông từ cơ sở dữ liệu của cửa hàng. Đây là NGUỒN DUY NHẤT để chọn giày. "
-        "Chỉ gọi khi đã biết giới tính (men/women) và size EU. Thiếu một trong hai thì hỏi lại, không đoán. "
-        "Nếu người dùng nói size theo hệ khác (UK, US, cm) thì hỏi size EU, không tự quy đổi. "
-        "prefer_light và width chỉ điền khi người dùng nói rõ."
+        "Recommend badminton shoes from the shop's database. This is the ONLY source for choosing shoes. "
+        "Only call it when gender (men/women) and EU size are both known. If either is missing, ask instead of guessing. "
+        "If the user gives a size in another system (UK, US, cm), ask for the EU size; do not convert it yourself. "
+        "Only fill in prefer_light and width when the user states them clearly."
     ),
     "input_schema": {
         "type": "object",
         "properties": {
-            "gender": {"type": "string", "enum": sorted(GENDERS), "description": "men hoặc women."},
-            "size_eu": {"type": "number", "description": "Size giày hệ EU, ví dụ 42 hoặc 42.5."},
-            "prefer_light": {"type": "boolean", "description": "true nếu người dùng ưu tiên giày nhẹ."},
+            "gender": {"type": "string", "enum": sorted(GENDERS), "description": "men or women."},
+            "size_eu": {"type": "number", "description": "Shoe size in the EU system, e.g. 42 or 42.5."},
+            "prefer_light": {"type": "boolean", "description": "true if the user prefers lightweight shoes."},
             "width": {"type": "string", "enum": sorted(SHOE_ALLOWED["width"]),
-                      "description": "Form: narrow=hẹp, standard=chuẩn, wide=rộng (bàn chân to ngang)."},
-            "max_price": {"type": "number", "description": "Ngân sách tối đa, EUR. Bỏ trống nếu không nói."},
+                      "description": "Fit: narrow, standard, or wide (for wider feet)."},
+            "max_price": {"type": "number", "description": "Maximum budget in EUR. Leave empty if not mentioned."},
         },
         "required": ["gender", "size_eu"],
     },
-    },
-        {
+},
+    {
     "name": "find_shoe",
     "description": (
-        "Tra thông tin một đôi giày cụ thể theo tên (giá, giới tính, khoảng size EU, cân nặng, form) "
-        "trong cơ sở dữ liệu cửa hàng. Dùng khi người dùng hỏi về một đôi giày có tên hoặc một hãng. "
-        "Không dùng để gợi ý giày theo nhu cầu (dùng recommend_shoes)."
+        "Look up information about a specific pair of shoes by name (price, gender, EU size range, weight, fit) "
+        "in the shop's database. Use when the user asks about a named shoe or a brand. "
+        "Do not use it to recommend shoes based on needs (use recommend_shoes)."
     ),
     "input_schema": {
         "type": "object",
-        "properties": {"name": {"type": "string", "description": "Tên giày, ví dụ 'Subaxia GT'."}},
+        "properties": {"name": {"type": "string", "description": "Shoe name, for example 'Subaxia GT'."}},
         "required": ["name"],
     },
-    }
+}
 ]
 
 
-SYSTEM = """Bạn là tư vấn viên vợt và giày cầu lông vui tính. Trả lời bằng ngôn ngữ người dùng đang dùng. .
-Quy tắc:
-1. Chỉ nhắc đến vợt có trong kết quả của công cụ recommend_racket. Không bịa vợt, giá hay thông số.
-2. Thiếu level, play_style hoặc ngân sách thì hỏi lại, chỉ hỏi một câu ngắn. Đừng đoán.
-3. Đọc trường status và nói đúng sự thật:
-   - exact: vợt khớp hoàn toàn.
-   - approximate: nói rõ là chỉ gần đúng, nêu điểm lệch (dùng trường note/reason).
-   - no_good_match / no_rackets_in_budget:  nói thẳng là không có. Nếu cheapest_match là một đối tượng, được nêu đúng name, price_eur, level, play_style của nó. Nếu is_exact là false, phải nói rõ đó chỉ là vợt gần nhất (gọi level/play_style thật của nó, không gọi là "phù hợp"), rồi hỏi người dùng có muốn nâng ngân sách không. Nếu cheapest_match là null thì nói cửa hàng chưa có vợt nào đủ gần ở mọi mức giá. Không nêu con số ngân sách nào khác.
-4. Ngắn gọn, mỗi vợt một dòng kèm lý do.
-5. Khi người dùng hỏi về một vợt cụ thể theo tên (giá, thông số), gọi find_racket. Chỉ nói thông tin có trong kết quả. status not_found thì nói thẳng là cửa hàng không có vợt đó, không đoán từ kiến thức bên ngoài.
-6. Câu hỏi giải thích hoặc khái niệm về vợt (head heavy/light, độ cứng, 3U/4U, cỡ cán, độ căng cước, nên chọn loại nào theo trình độ): gọi search_knowledge và CHỈ dùng nội dung trong passages trả về. Không thêm kiến thức ngoài.
-7. Nếu status là no_relevant_knowledge, hoặc các đoạn không thật sự nói về điều được hỏi (chỉ cùng chủ đề), nói thẳng là kho kiến thức chưa có thông tin này. Không tự trả lời bằng kiến thức chung.
-8. Khi trả lời từ passages, nói đây là thông tin theo nguồn (tên trang trong source_url), không trình bày như sự thật tuyệt đối.
-9. Gợi ý giày: gọi recommend_shoes. Cần giới tính (men/women) và size EU; thiếu thì hỏi một câu ngắn, đừng đoán. Giày unisex đã nằm sẵn trong kết quả.
-10. Chỉ nhắc đến giày có trong kết quả recommend_shoes. status no_shoes_for_size: nói thẳng là không có giày cho giới tính và size đó, không nêu giày khác. status no_data_for_criteria: nói là thiếu dữ liệu cho tiêu chí đã chọn.
-11. Nếu excluded_no_data không rỗng, nêu tên các đôi đó và lý do chưa xếp.
-12. Khi nói về độ nhẹ, nêu số gram và size đo (trong reason), không chỉ nói điểm; nhắc là cân nặng chỉ gần đúng (theo note). Nếu note nói chưa có tiêu chí mềm thì nói các đôi đang xếp theo giá.
-13. Hỏi về một đôi giày cụ thể theo tên (giá, size, cân nặng, form): gọi find_shoe và chỉ nói thông tin có trong kết quả. status not_found thì nói thẳng cửa hàng không có đôi đó, không đoán. Trường null nghĩa là chưa có dữ liệu, hãy nói đúng như vậy. Cân nặng luôn kèm size đo (weight_ref_size_eu). Người hỏi cả vợt và giày thì xử lý từng phần với công cụ riêng.
+SYSTEM = """You are a friendly, cheerful badminton racket and shoe advisor. Reply in the language the user writes in.
+Rules:
+1. Only mention rackets that appear in the results of the recommend_racket tool. Never invent rackets, prices or specs.
+2. If level, play_style or budget is missing, ask for it with one short question. Do not guess.
+3. Read the status field and describe it truthfully:
+   - exact: the racket is a full match.
+   - approximate: say clearly that it is only a close match and name where it differs (use the note/reason field).
+   - no_good_match / no_rackets_in_budget: say plainly that there is none. If cheapest_match is an object, you may state its exact name, price_eur, level and play_style. If is_exact is false, you must say that it is only the closest racket (give its real level/play_style, and do not call it "suitable"), then ask whether the user wants to raise the budget. If cheapest_match is null, say the shop has no racket that is close enough at any price. Do not mention any other budget figure.
+4. Be concise: one line per racket, with the reason.
+5. When the user asks about a specific racket by name (price, specs), call find_racket. Only state information present in the result. If status is not_found, say plainly that the shop doesn't have that racket; do not guess from outside knowledge.
+6. For explanatory or conceptual questions about rackets (head heavy/light, stiffness, 3U/4U, grip size, string tension, which type to choose for a skill level): call search_knowledge and use ONLY the content of the returned passages. Do not add outside knowledge.
+7. If status is no_relevant_knowledge, or the passages are only on the same topic and don't really answer the question, say plainly that the knowledge base doesn't have this information yet. Do not answer from general knowledge.
+8. When answering from passages, say that the information comes from a source (the page name in source_url); do not present it as absolute truth.
+9. For shoe recommendations: call recommend_shoes. You need gender (men/women) and EU size; if either is missing, ask with one short question and do not guess. Unisex shoes are already included in the results.
+10. Only mention shoes that appear in the recommend_shoes results. If status is no_shoes_for_size: say plainly that there are no shoes for that gender and size, and do not suggest other shoes. If status is no_data_for_criteria: say that data is missing for the chosen criteria.
+11. If excluded_no_data is not empty, name those pairs and give the reason they were not ranked.
+12. When talking about lightness, state the weight in grams and the measured size (in reason), not just the score; mention that the weight is only approximate (per the note). If the note says there are no soft criteria, say the pairs are ranked by price.
+13. For a question about a specific pair of shoes by name (price, size, weight, fit): call find_shoe and only state information present in the result. If status is not_found, say plainly that the shop doesn't have that pair; do not guess. A null field means no data yet, so say exactly that. Always give the weight together with its measured size (weight_ref_size_eu). If the user asks about both rackets and shoes, handle each part with its own tool.
+14. If the user accepts several values for balance or stiffness (for example "medium or stiff"), call recommend_racket once per value and combine the results, saying which stiffness each racket was found for.
 """
 
 
 def run_tool(name: str, args: dict) -> tuple[str, bool]:
-    """Chạy tool thật. Trả (nội dung_json, is_error). Kiểm tra đầu vào trước khi gọi."""
+    """Run the real tool. Returns (json_content, is_error). Validates input before calling."""
     if name == "find_racket":
         n = str(args.get("name", "")).strip()
         if not n:
-            return json.dumps({"error": "thiếu tên vợt"}), True
+            return json.dumps({"error": "missing racket name"}), True
         try:
             return json.dumps(find_racket(n), ensure_ascii=False), False
         except Exception as e:
@@ -151,14 +154,14 @@ def run_tool(name: str, args: dict) -> tuple[str, bool]:
     if name == "search_knowledge":
         q = str(args.get("query", "")).strip()
         if not q:
-            return json.dumps({"error": "thiếu query"}), True
+            return json.dumps({"error": "missing query"}), True
         result = search_knowledge(q)
         return json.dumps(result, ensure_ascii=False), result.get("status") == "error"
 
     if name == "find_shoe":
         n = str(args.get("name", "")).strip()
         if not n:
-            return json.dumps({"error": "thiếu tên giày"}), True
+            return json.dumps({"error": "missing shoe name"}), True
         try:
             return json.dumps(find_shoe(n), ensure_ascii=False), False
         except Exception as e:
@@ -166,10 +169,10 @@ def run_tool(name: str, args: dict) -> tuple[str, bool]:
 
     if name == "recommend_shoes":
         if args.get("gender") not in GENDERS:
-            return json.dumps({"error": f"gender phải là một trong {sorted(GENDERS)}"}), True
+            return json.dumps({"error": f"gender must be one of {sorted(GENDERS)}"}), True
         w = args.get("width")
         if w is not None and w not in SHOE_ALLOWED["width"]:
-            return json.dumps({"error": f"width={w!r} không hợp lệ, cho phép: {sorted(SHOE_ALLOWED['width'])}"}), True
+            return json.dumps({"error": f"width={w!r} is invalid, allowed: {sorted(SHOE_ALLOWED['width'])}"}), True
         try:
             mp = args.get("max_price")
             result = recommend_shoes(
@@ -181,25 +184,25 @@ def run_tool(name: str, args: dict) -> tuple[str, bool]:
             return json.dumps({"error": str(e)}), True
         return json.dumps(result, ensure_ascii=False), False
     if name != "recommend_racket":
-        return json.dumps({"error": f"tool lạ: {name}"}), True
-    
+        return json.dumps({"error": f"unknown tool: {name}"}), True
+
     for col in ("level", "play_style", "balance", "stiffness"):
         v = args.get(col)
         if v is not None and v not in ENUM[col]:
-            return json.dumps({"error": f"{col}={v!r} không hợp lệ, cho phép: {ENUM[col]}"}), True
+            return json.dumps({"error": f"{col}={v!r} is invalid, allowed: {ENUM[col]}"}), True
     try:
         result = recommend(
             level=args["level"], play_style=args["play_style"],
             max_price=float(args["max_price"]),
             balance=args.get("balance"), stiffness=args.get("stiffness"),
         )
-    except Exception as e:  # trả lỗi về cho LLM thay vì làm sập chương trình
+    except Exception as e:  # return the error to the LLM instead of crashing the program
         return json.dumps({"error": str(e)}), True
     return json.dumps(result, ensure_ascii=False), False
 
 
 def chat_turn(messages: list) -> str:
-    """Một lượt hội thoại: lặp đến khi LLM trả lời bằng chữ."""
+    """One conversation turn: loop until the LLM answers with text."""
     for _ in range(MAX_STEPS):
         resp = client.messages.create(
             model=MODEL, max_tokens=1000, system=SYSTEM,
@@ -213,21 +216,23 @@ def chat_turn(messages: list) -> str:
         tool_results = []
         for block in resp.content:
             if block.type == "tool_use":
-                print(f"  [tool] {block.name}({json.dumps(block.input, ensure_ascii=False)})")
+                print(
+                    f"  [tool] {block.name}({json.dumps(block.input, ensure_ascii=False)})")
                 content, is_err = run_tool(block.name, block.input)
                 if block.name == "search_knowledge":
-                    print("  [passages]", [p["id"] for p in json.loads(content).get("passages", [])])
+                    print("  [passages]", [p["id"]
+                          for p in json.loads(content).get("passages", [])])
                 tool_results.append({"type": "tool_result", "tool_use_id": block.id,
                                      "content": content, "is_error": is_err})
         messages.append({"role": "user", "content": tool_results})
-    return "(Dừng: vượt số bước tối đa.)"
+    return "(Stopped: exceeded the maximum number of steps.)"
 
 
 if __name__ == "__main__":
-    print("Badminton advisor. Gõ 'q' để thoát.")
-    history: list = []  # giữ lịch sử để agent hỏi lại và nhớ câu trả lời
+    print("Badminton advisor. Type 'q' to quit.")
+    history: list = []  # keep history so the agent can ask follow-ups and remember answers
     while True:
-        text = input("\nBạn: ").strip()
+        text = input("\nYou: ").strip()
         if text.lower() in ("q", "quit", "exit"):
             break
         history.append({"role": "user", "content": text})

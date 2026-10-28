@@ -1,5 +1,5 @@
-/* Trang upload video: chọn / kéo thả, kiểm tra, xem trước cục bộ.
-   Chưa gửi lên server vì backend chưa có endpoint upload. */
+/* Video upload page: pick / drag and drop, validate, preview locally.
+   Not sent to the server yet because the backend has no upload endpoint. */
 (function () {
   'use strict';
 
@@ -39,11 +39,11 @@
     showError('');
     if (!file) return;
     if (!/^video\//.test(file.type)) {
-      showError('Tệp này không phải video. Hãy chọn MP4, MOV hoặc WebM.');
+      showError('This file is not a video. Please choose an MP4, MOV or WebM file.');
       return;
     }
     if (file.size > MAX_MB * 1048576) {
-      showError('Video nặng ' + fmtSize(file.size) + ', vượt giới hạn ' + MAX_MB + ' MB.');
+      showError('The video is ' + fmtSize(file.size) + ', which exceeds the ' + MAX_MB + ' MB limit.');
       return;
     }
     if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -73,5 +73,5 @@
 
   removeBtn.addEventListener('click', clearVideo);
 
-  // Điểm nối sau này: bật nút "Phân tích" và gửi file bằng FormData tới endpoint upload khi backend sẵn sàng.
+  // Future hook: enable the "Analyze" button and send the file with FormData to the upload endpoint once the backend is ready.
 })();
