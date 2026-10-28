@@ -3,7 +3,7 @@
 Run: python src/clean_shoes.py
 """
 import csv
-
+from badminton.domain.contracts import SHOE_ALLOWED as ALLOWED
 import pandas as pd
 
 from clean_rackets import BRAND_MAP        # shared brand-name normalization
@@ -16,10 +16,7 @@ COLUMNS = ["name", "brand", "gender", "size_min_eu", "size_max_eu", "weight_g",
            "weight_ref_size_eu", "width", "price_eur", "note"]
 
 # Data contract for categorical columns. width may be empty (the brand doesn't publish it).
-ALLOWED = {
-    "gender": {"men", "women", "unisex"},
-    "width": {"narrow", "standard", "wide"},
-}
+
 # Plausible ranges for numeric columns: values outside are most likely typos.
 RANGES = {
     "size_min_eu": (30, 55), "size_max_eu": (30, 55),
