@@ -5,16 +5,10 @@ Run: python src/clean_rackets.py
 from pathlib import Path
 from config import RAW, PROCESSED
 import pandas as pd
-
+from badminton.domain.contracts import RACKET_ALLOWED as ALLOWED
 
 # "Data contract": each column may only take these values.
-ALLOWED = {
-    "weight_class": {"2U", "3U", "4U", "5U"},
-    "balance": {"head_light", "even", "head_heavy"},
-    "stiffness": {"flexible", "medium", "stiff"},
-    "level": {"beginner", "intermediate", "advanced"},
-    "play_style": {"attack", "speed", "control", "allround"},
-}
+
 # The same brand is spelled differently by each shop -> map it to one canonical name.
 BRAND_MAP = {"lining": "Li-Ning", "li-ning": "Li-Ning", "yonex": "Yonex",
              "victor": "Victor", "mizuno": "Mizuno", "proace": "Proace",
