@@ -6,14 +6,8 @@ import sqlite3
 
 import pandas as pd
 import json
-
+from badminton.domain.shoe_scoring import WIDTH, W_LIGHT, W_WIDTH, GENDERS, explain
 from config import DB_PATH
-
-WIDTH = {"narrow": 0.0, "standard": 0.5, "wide": 1.0}
-# Importance weights (a design decision, not yet validated with real users)
-W_WIDTH, W_LIGHT = 2.0, 1.0
-# the user picks men/women; unisex shoes are included automatically
-GENDERS = {"men", "women"}
 
 def _esc_like(s: str) -> str:
     return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -119,17 +113,6 @@ def recommend_shoes(gender, size_eu, prefer_light=False, width=None,
             "results": [{"name": r.name, "price_eur": float(r.price_eur), "score": round(float(r.score), 2),
                          "reason": explain(r, width, prefer_light)} for r in df.itertuples()],
             "excluded_no_data": excluded}
-
-
-def explain(r, width, prefer_light) -> str:
-    parts = [f"fit {r.width}" + (" (match)" if width and r.width == width
-                                 else f" (you: {width})" if width else "")
-             if isinstance(r.width, str) else "fit: no data"]
-    if prefer_light:
-        parts.append(
-            f"weight {r.weight_g:.0f} g (measured at EU size {r.weight_ref_size_eu:g})")
-    return "; ".join(parts)
-
 
 if __name__ == "__main__":
     cases = {
