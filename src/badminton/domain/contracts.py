@@ -11,3 +11,5 @@ SHOE_ALLOWED = {
     "width": {"narrow", "standard", "wide"},
 }
 
+RACKET_SORTS = ("price_asc", "price_desc", "name")
+SHOE_SORTS = ("price_asc", "price_desc", "name", "weight_asc")

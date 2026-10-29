@@ -17,13 +17,17 @@ def impl() -> dict:
     import recommender as R
     import shoe_recommender as S
     import catalog as C
+    from badminton.config import DB_PATH
+    from badminton.data.sqlite_racket_repo import SqliteRacketRepository
+    from badminton.data.sqlite_shoe_repo import SqliteShoeRepository
+    rr, sr = SqliteRacketRepository(DB_PATH), SqliteShoeRepository(DB_PATH)
     return {
         "recommend_racket": lambda **a: R.recommend(**a),
         "find_racket": lambda name: R.find_racket(name),
         "recommend_shoes": lambda **a: S.recommend_shoes(**a),
         "find_shoe": lambda name: S.find_shoe(name),
-        "list_rackets": lambda **a: C.list_rackets(**a),
-        "list_shoes": lambda **a: C.list_shoes(**a),
+        "list_rackets": lambda **a: rr.list_page(**a),
+        "list_shoes": lambda **a: sr.list_page(**a),
     }
 # =============================================================================================
 
