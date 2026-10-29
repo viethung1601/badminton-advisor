@@ -32,20 +32,20 @@ class SqliteShoeRepository:
         if max_price is not None:
             sql += " AND price_eur <= ?"
             params.append(max_price)
-        with sqlite3.connect(self.db_path) as conn:
+        with closing(sqlite3.connect(self.db_path)) as conn:
             return pd.read_sql_query(sql, conn, params=params)
 
     def find_by_name(self, name: str, limit: int) -> pd.DataFrame:
         pat = f"%{escape_like(name.strip())}%"
-        with sqlite3.connect(self.db_path) as conn:
-            df = pd.read_sql_query(
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            return pd.read_sql_query(
                 "SELECT name, brand, gender, size_min_eu, size_max_eu, weight_g, weight_ref_size_eu, "
                 "width, price_eur, note FROM shoes "
                 "WHERE name LIKE ? ESCAPE '\\' OR (brand || ' ' || name) LIKE ? ESCAPE '\\' "
                 "ORDER BY price_eur LIMIT ?",
                 conn, params=(pat, pat, limit),
             )
-        
+
     def list_page(self, *, q=None, brands=None, filters=None, size_eu=None, min_price=None,
                   max_price=None, max_weight_g=None, sort="price_asc", limit=50, offset=0) -> dict:
         where, params = [], []
