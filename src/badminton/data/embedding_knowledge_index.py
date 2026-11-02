@@ -2,7 +2,6 @@ import hashlib
 
 import numpy as np
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 
 class EmbeddingKnowledgeIndex:
     def __init__(self, csv_path, emb_path,
@@ -21,6 +20,7 @@ class EmbeddingKnowledgeIndex:
 
     def _get_model(self):
         if self._model is None:
+            from sentence_transformers import SentenceTransformer
             self._model = SentenceTransformer(self.model_name)
             # default is 128 tokens; long passages (k04, k10) would have their tails cut off
             self._model.max_seq_length = 256

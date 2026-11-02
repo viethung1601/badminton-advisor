@@ -1,0 +1,63 @@
+[
+ {
+  "name": "find_racket",
+  "description": "Look up information about a specific racket by name (price, level, play style...) in the shop's database, for example 'Astrox 99 Pro'. Only state information present in the result; status not_found means the shop doesn't have that racket, so do not guess from outside knowledge. Do not use it to recommend rackets based on needs.",
+  "properties": [
+   "name"
+  ],
+  "required": [
+   "name"
+  ]
+ },
+ {
+  "name": "find_shoe",
+  "description": "Look up information about a specific pair of shoes by name (price, gender, EU size range, weight, fit) in the shop's database, for example 'Subaxia GT'. Only state information present in the result; status not_found = the shop doesn't have that pair; a null field = no data yet, say exactly that. Always give the weight together with weight_ref_size_eu. Do not use it to recommend shoes based on needs (use recommend_shoes).",
+  "properties": [
+   "name"
+  ],
+  "required": [
+   "name"
+  ]
+ },
+ {
+  "name": "recommend_racket",
+  "description": "Recommend badminton rackets from the shop's database. This is the ONLY source for choosing rackets. Only call it when level, play_style and max_price (EUR) are known; if any is missing, ask the user instead of guessing. level: ['intermediate', 'advanced', 'beginner']. play_style: ['speed', 'attack', 'control', 'allround'] (attack, speed = fast/counter-attacking, control, allround). balance: ['head_light', 'head_heavy', 'even'], stiffness: ['medium', 'stiff', 'flexible']: only fill in when the user states them clearly. Only mention rackets that appear in the results. Read the status field: exact = full match; approximate = only a close match, you must name where it differs; no_good_match / no_rackets_in_budget = say plainly that there is no racket within the budget. If cheapest_match is an object: state its exact name, price_eur, level and play_style; if is_exact is false, say clearly that it is only the closest racket, do not call it 'suitable', then ask the user whether they want to raise the budget. If cheapest_match is null, say the shop has no racket close enough at any price. Do not mention any other budget figure.",
+  "properties": [
+   "balance",
+   "level",
+   "max_price",
+   "play_style",
+   "stiffness"
+  ],
+  "required": [
+   "level",
+   "max_price",
+   "play_style"
+  ]
+ },
+ {
+  "name": "recommend_shoes",
+  "description": "Recommend badminton shoes from the shop's database. This is the ONLY source for choosing shoes. Only call it when gender (men/women) and size_eu are known; if either is missing, ask instead of guessing. If the user gives a size in another system (UK, US, cm), ask for the EU size; do not convert it yourself. Only fill in prefer_light, width and max_price when the user states them clearly. width: ['narrow', 'standard', 'wide'] (narrow, standard, wide). Only mention shoes that appear in the results. If excluded_no_data is not empty, name those pairs and the reason they were not ranked. When talking about lightness, state the weight in grams together with the measured size and mention that the weight is only approximate. status no_shoes_for_size = there are no shoes for that gender and size; no_data_for_criteria = data is missing for the chosen criteria. Unisex shoes are already included in the results, no need to ask more.",
+  "properties": [
+   "gender",
+   "max_price",
+   "prefer_light",
+   "size_eu",
+   "width"
+  ],
+  "required": [
+   "gender",
+   "size_eu"
+  ]
+ },
+ {
+  "name": "search_knowledge",
+  "description": "Search badminton knowledge in the curated knowledge base: balance (head heavy/light), shaft stiffness, 3U/4U, grip size G, string tension, advice by skill level. Use for questions that ask for an explanation or a concept. ONLY use the content of the returned passages and say clearly that the information comes from a source (source_url). If status is no_relevant_knowledge, say plainly that the knowledge base doesn't have this information. Do not use it to look up the price/name of a specific racket (use find_racket) or to recommend rackets by budget (use recommend_racket).",
+  "properties": [
+   "query"
+  ],
+  "required": [
+   "query"
+  ]
+ }
+]
