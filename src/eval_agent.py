@@ -17,8 +17,8 @@ import json
 import re
 import sys
 
-from config import ROOT
-import agent
+from badminton.config import ROOT
+import badminton.presentation.agent as agent
 
 # ---------------------------------------------------------------- test cases
 # expect.kind:
