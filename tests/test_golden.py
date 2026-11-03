@@ -7,7 +7,6 @@ import json
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 BASELINE = json.loads((ROOT / "tests" / "golden" / "baseline.json").read_text(encoding="utf-8"))
@@ -24,14 +23,15 @@ def impl() -> dict:
     from badminton.domain.usecases.racket import RecommendRacket, FindRacket
     from badminton.domain.usecases.shoes import RecommendShoes, FindShoe
     from badminton.domain.usecases.catalog import ListRackets, ListShoes
-    rr, sr = SqliteRacketRepository(DB_PATH), SqliteShoeRepository(DB_PATH)
+    from badminton.container import get_usecases
+    uc = get_usecases()
     return {
-        "recommend_racket": RecommendRacket(rr),
-        "find_racket": FindRacket(rr),
-        "recommend_shoes": RecommendShoes(sr),
-        "find_shoe": FindShoe(sr),
-        "list_rackets": ListRackets(rr),
-        "list_shoes": ListShoes(sr),
+        "recommend_racket": uc.recommend_racket,
+        "find_racket" : uc.find_racket,
+        "recommend_shoes": uc.recommend_shoes,
+        "find_shoe": uc.find_shoe,
+        "list_rackets": uc.list_rackets,
+        "list_shoes": uc.list_shoes,
     }
 # =============================================================================================
 
