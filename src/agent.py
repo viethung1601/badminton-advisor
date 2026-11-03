@@ -5,12 +5,8 @@ import os
 from dotenv import load_dotenv
 import anthropic
 
-from knowledge import search_knowledge
-from config import ROOT
-from clean_rackets import ALLOWED
-from recommender import recommend, find_racket
-from clean_shoes import ALLOWED as SHOE_ALLOWED
-from shoe_recommender import recommend_shoes, find_shoe, GENDERS
+from badminton.config import ROOT
+from badminton.presentation.tools import TOOLS as _REGISTRY, ENUM, run_tool as _run_tool
 
 load_dotenv(ROOT / ".env")
 MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
@@ -20,103 +16,8 @@ MAX_STEPS = 5  # prevents an infinite loop within one chat turn
 client = anthropic.Anthropic()
 
 # valid values come from ALLOWED: a single source of truth
-ENUM = {k: list(ALLOWED[k])
-        for k in ("level", "play_style", "balance", "stiffness")}
-
-TOOLS = [{
-    "name": "recommend_racket",
-    "description": (
-        "Recommend badminton rackets from the shop's database. This is the only source "
-        "for choosing rackets. Only call it when level, play_style and budget are all known. "
-        "If any of the three is missing, ask the user instead of guessing. "
-        "Only fill in balance and stiffness if the user explicitly specifies them."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "level": {"type": "string", "enum": ENUM["level"],
-                      "description": "Player skill level."},
-            "play_style": {"type": "string", "enum": ENUM["play_style"],
-                           "description": "Play style: attack, speed (fast/counter-attacking), "
-                                          "control, allround."},
-            "max_price": {"type": "number", "description": "Maximum budget in EUR."},
-            "balance": {"type": "string", "enum": ENUM["balance"],
-                        "description": "Balance point. Leave empty if the user doesn't mention it."},
-            "stiffness": {"type": "string", "enum": ENUM["stiffness"],
-                          "description": "Shaft stiffness. Leave empty if the user doesn't mention it."},
-        },
-        "required": ["level", "play_style", "max_price"],
-    },
-},
-    {
-    "name": "search_knowledge",
-    "description": (
-        "Search badminton knowledge from the curated knowledge base: balance "
-        "(head heavy/light), shaft stiffness, 3U/4U, grip size G, string tension, "
-        "advice by skill level. Use for questions that ask for an explanation or a concept. "
-        "Do NOT use it to look up the price or name of a specific racket (use find_racket), "
-        "and do NOT use it to recommend rackets by budget (use recommend_racket)."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "query": {
-                "type": "string",
-                "description": "The user's question, kept in their own wording (e.g. 'head heavy', 'nặng đầu').",
-            }
-        },
-        "required": ["query"],
-    },
-},
-    {
-    "name": "find_racket",
-    "description": (
-        "Look up information about a specific racket by name (price, level, play style...) "
-        "in the shop's database. Use when the user asks about a racket by name. "
-        "Do not use it to recommend rackets based on the user's needs."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {"name": {"type": "string", "description": "Racket name, for example 'Astrox 99 Pro'."}},
-        "required": ["name"],
-    },
-},
-    {
-    "name": "recommend_shoes",
-    "description": (
-        "Recommend badminton shoes from the shop's database. This is the ONLY source for choosing shoes. "
-        "Only call it when gender (men/women) and EU size are both known. If either is missing, ask instead of guessing. "
-        "If the user gives a size in another system (UK, US, cm), ask for the EU size; do not convert it yourself. "
-        "Only fill in prefer_light and width when the user states them clearly."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "gender": {"type": "string", "enum": sorted(GENDERS), "description": "men or women."},
-            "size_eu": {"type": "number", "description": "Shoe size in the EU system, e.g. 42 or 42.5."},
-            "prefer_light": {"type": "boolean", "description": "true if the user prefers lightweight shoes."},
-            "width": {"type": "string", "enum": sorted(SHOE_ALLOWED["width"]),
-                      "description": "Fit: narrow, standard, or wide (for wider feet)."},
-            "max_price": {"type": "number", "description": "Maximum budget in EUR. Leave empty if not mentioned."},
-        },
-        "required": ["gender", "size_eu"],
-    },
-},
-    {
-    "name": "find_shoe",
-    "description": (
-        "Look up information about a specific pair of shoes by name (price, gender, EU size range, weight, fit) "
-        "in the shop's database. Use when the user asks about a named shoe or a brand. "
-        "Do not use it to recommend shoes based on needs (use recommend_shoes)."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {"name": {"type": "string", "description": "Shoe name, for example 'Subaxia GT'."}},
-        "required": ["name"],
-    },
-}
-]
-
+TOOLS = [{"name": t.name, "description": t.description, "input_schema": t.input_schema}
+         for t in _REGISTRY]
 
 SYSTEM = """You are a friendly, cheerful badminton racket and shoe advisor. Reply in the language the user writes in.
 Rules:
@@ -141,64 +42,9 @@ Rules:
 
 
 def run_tool(name: str, args: dict) -> tuple[str, bool]:
-    """Run the real tool. Returns (json_content, is_error). Validates input before calling."""
-    if name == "find_racket":
-        n = str(args.get("name", "")).strip()
-        if not n:
-            return json.dumps({"error": "missing racket name"}), True
-        try:
-            return json.dumps(find_racket(n), ensure_ascii=False), False
-        except Exception as e:
-            return json.dumps({"error": str(e)}), True
-
-    if name == "search_knowledge":
-        q = str(args.get("query", "")).strip()
-        if not q:
-            return json.dumps({"error": "missing query"}), True
-        result = search_knowledge(q)
-        return json.dumps(result, ensure_ascii=False), result.get("status") == "error"
-
-    if name == "find_shoe":
-        n = str(args.get("name", "")).strip()
-        if not n:
-            return json.dumps({"error": "missing shoe name"}), True
-        try:
-            return json.dumps(find_shoe(n), ensure_ascii=False), False
-        except Exception as e:
-            return json.dumps({"error": str(e)}), True
-
-    if name == "recommend_shoes":
-        if args.get("gender") not in GENDERS:
-            return json.dumps({"error": f"gender must be one of {sorted(GENDERS)}"}), True
-        w = args.get("width")
-        if w is not None and w not in SHOE_ALLOWED["width"]:
-            return json.dumps({"error": f"width={w!r} is invalid, allowed: {sorted(SHOE_ALLOWED['width'])}"}), True
-        try:
-            mp = args.get("max_price")
-            result = recommend_shoes(
-                gender=args["gender"], size_eu=float(args["size_eu"]),
-                prefer_light=bool(args.get("prefer_light", False)), width=w,
-                max_price=float(mp) if mp is not None else None,
-            )
-        except Exception as e:
-            return json.dumps({"error": str(e)}), True
-        return json.dumps(result, ensure_ascii=False), False
-    if name != "recommend_racket":
-        return json.dumps({"error": f"unknown tool: {name}"}), True
-
-    for col in ("level", "play_style", "balance", "stiffness"):
-        v = args.get(col)
-        if v is not None and v not in ENUM[col]:
-            return json.dumps({"error": f"{col}={v!r} is invalid, allowed: {ENUM[col]}"}), True
-    try:
-        result = recommend(
-            level=args["level"], play_style=args["play_style"],
-            max_price=float(args["max_price"]),
-            balance=args.get("balance"), stiffness=args.get("stiffness"),
-        )
-    except Exception as e:  # return the error to the LLM instead of crashing the program
-        return json.dumps({"error": str(e)}), True
-    return json.dumps(result, ensure_ascii=False), False
+    """Run a tool from the shared registry. Returns (json_content, is_error)."""
+    content, is_error = _run_tool(name, args)
+    return json.dumps(content, ensure_ascii=False), is_error
 
 
 def chat_turn(messages: list) -> str:
