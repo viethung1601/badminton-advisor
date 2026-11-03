@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 OUT = ROOT / "tests" / "golden"
 
-import agent  # noqa: E402  (cần ANTHROPIC_API_KEY trong .env như bình thường)
+import badminton.presentation.agent as agent  # noqa: E402  (cần ANTHROPIC_API_KEY trong .env như bình thường)
 
 (OUT / "agent_tools.json").write_text(
     json.dumps(agent.TOOLS, ensure_ascii=False, indent=1), encoding="utf-8")
