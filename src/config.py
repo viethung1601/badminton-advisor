@@ -1,1 +1,0 @@
-from badminton.config import ROOT, RAW, PROCESSED, DB_PATH  # noqa: F401

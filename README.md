@@ -23,6 +23,35 @@ The whole project (code, comments, UI, prompts, tool descriptions, knowledge bas
 - The knowledge base (`data/raw/knowledge.csv`) is an English translation of Vietnamese shop-blog articles; the `source_url` column still points to the original Vietnamese pages.
 - Retrieval uses the multilingual model `paraphrase-multilingual-MiniLM-L12-v2`, so a Vietnamese question can retrieve an English passage.
 
+## Architecture
+
+The code follows a three-layer layout. Dependencies point inwards: the domain
+knows nothing about databases, web frameworks or LLMs.
+
+```
+presentation  ──►  domain  ◄──  data
+(FastAPI, agent,   (scoring,    (SQLite repos,
+ MCP server,        use cases,   embeddings,
+ tool registry)     Protocols)   pipelines)
+```
+
+```
+src/badminton/
+├── domain/          scoring rules, use cases, repository Protocols (pure Python)
+├── data/            SQLite repositories, embedding index, cleaning/build pipeline
+├── presentation/    tool registry, Claude agent, FastAPI app, MCP server
+├── config.py        paths
+└── container.py     composition root: wires repositories into use cases
+```
+
+- One tool registry (`presentation/tools.py`) feeds both the Claude agent and
+  the MCP server, so the two cannot drift apart.
+- The files directly under `src/` (`api.py`, `agent.py`, `mcp_server.py`, ...)
+  are thin entry points, so the run commands below did not change.
+- Tests: golden tests compare 712 query results against a baseline recorded
+  before the refactor; unit tests use fake repositories (no DB, no API key).
+  Run with `python -m pytest tests -q` and `python tests/test_golden.py`.
+
 ## Setup
 
 Requires Python 3.11+ and an Anthropic API key.
