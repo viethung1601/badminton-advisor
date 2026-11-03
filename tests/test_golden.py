@@ -14,15 +14,6 @@ BASELINE = json.loads((ROOT / "tests" / "golden" / "baseline.json").read_text(en
 
 # ======================= ADAPTER: sửa phần này theo từng bước refactor =======================
 def impl() -> dict:
-    import recommender as R
-    import shoe_recommender as S
-    import catalog as C
-    from badminton.config import DB_PATH
-    from badminton.data.sqlite_racket_repo import SqliteRacketRepository
-    from badminton.data.sqlite_shoe_repo import SqliteShoeRepository
-    from badminton.domain.usecases.racket import RecommendRacket, FindRacket
-    from badminton.domain.usecases.shoes import RecommendShoes, FindShoe
-    from badminton.domain.usecases.catalog import ListRackets, ListShoes
     from badminton.container import get_usecases
     uc = get_usecases()
     return {
