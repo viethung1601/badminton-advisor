@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 eval_results.json
 data/knowledge_emb.npy*
+tests/.pytest_cache/

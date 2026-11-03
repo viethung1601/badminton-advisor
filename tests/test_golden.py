@@ -14,16 +14,15 @@ BASELINE = json.loads((ROOT / "tests" / "golden" / "baseline.json").read_text(en
 
 # ======================= ADAPTER: sửa phần này theo từng bước refactor =======================
 def impl() -> dict:
-    import recommender as R
-    import shoe_recommender as S
-    import catalog as C
+    from badminton.container import get_usecases
+    uc = get_usecases()
     return {
-        "recommend_racket": lambda **a: R.recommend(**a),
-        "find_racket": lambda name: R.find_racket(name),
-        "recommend_shoes": lambda **a: S.recommend_shoes(**a),
-        "find_shoe": lambda name: S.find_shoe(name),
-        "list_rackets": lambda **a: C.list_rackets(**a),
-        "list_shoes": lambda **a: C.list_shoes(**a),
+        "recommend_racket": uc.recommend_racket,
+        "find_racket" : uc.find_racket,
+        "recommend_shoes": uc.recommend_shoes,
+        "find_shoe": uc.find_shoe,
+        "list_rackets": uc.list_rackets,
+        "list_shoes": uc.list_shoes,
     }
 # =============================================================================================
 
