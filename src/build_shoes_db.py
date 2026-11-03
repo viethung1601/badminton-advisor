@@ -7,7 +7,8 @@ import sqlite3
 
 import pandas as pd
 
-from clean_shoes import ALLOWED, OUT_SHOES
+from badminton.domain.contracts import SHOE_ALLOWED as ALLOWED
+from clean_shoes import OUT_SHOES
 from config import DB_PATH
 
 

@@ -7,7 +7,7 @@ import sqlite3
 
 import pandas as pd
 
-from clean_rackets import ALLOWED          # shared "data contract"
+from badminton.domain.contracts import RACKET_ALLOWED as ALLOWED   # shared "data contract"        # shared "data contract"
 from config import DB_PATH, PROCESSED
 
 
