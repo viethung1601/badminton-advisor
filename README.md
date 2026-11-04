@@ -66,7 +66,7 @@ src/badminton/
 Requires Python 3.11+ and an Anthropic API key.
 
 ```powershell
-git clone <https://github.com/viethung1601/badminton-advisor.git>
+git clone <https://github.com/viethung1601/badminton-doctor.git>
 cd badminton-advisor
 python -m venv .venv
 .venv\Scripts\Activate.ps1
