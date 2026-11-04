@@ -1,4 +1,4 @@
-# Badminton Advisor
+# Badminton Doctor
 
 An LLM agent that recommends badminton rackets and shoes from a curated catalog and
 answers equipment questions from a small knowledge base. The same tools are available
