@@ -48,9 +48,6 @@ src/badminton/
   the MCP server, so the two cannot drift apart.
 - The files directly under `src/` (`api.py`, `agent.py`, `mcp_server.py`, ...)
   are thin entry points, so the run commands below did not change.
-- Tests: golden tests compare 712 query results against a baseline recorded
-  before the refactor; unit tests use fake repositories (no DB, no API key).
-  Run with `python -m pytest tests -q` and `python tests/test_golden.py`.
 
 ## Setup
 
@@ -92,10 +89,18 @@ Open http://127.0.0.1:8000. The "Ask an expert" button also needs n8n running (s
 
 ```powershell
 pip install pytest
-python -m pytest tests -q
+python -m pytest tests -q          # unit + API tests (17)
+python tests/test_golden.py        # 712-case regression check
 ```
 
-`tests/test_golden.py` is a regression test: it runs the recommenders and catalog queries with many inputs and compares the output with `tests/golden/baseline.json`. It is a safety net for refactoring. If you change user-facing text on purpose (for example the `note` or `reason` strings), the test fails; check that only text changed, then regenerate the baseline with `python tests/make_baseline.py`.
+- `tests/test_golden.py` runs the use cases with 712 input combinations and compares
+  the output with `tests/golden/baseline.json`, which was recorded from the code
+  *before* the layered refactor. It is a safety net: it proves behavior did not change,
+  not that the old behavior was correct.
+- Use-case tests run against fake repositories (no database, no API key); API tests
+  replace the LLM call with a fake.
+- If you change user-facing text on purpose, the golden test fails. Check that only
+  the text changed. There is currently no script to regenerate it
 
 ## Limits of the racket recommender
 
@@ -111,7 +116,7 @@ Same two-step idea as the racket recommender, with different criteria:
 - **Hard filter (SQL):** gender (`unisex` shoes are always included) and EU size (`size_min_eu <= size <= size_max_eu`), optionally price.
 - **Soft ranking:** width match and lightness, each scored in [0, 1] and combined with weights (`W_WIDTH = 2`, `W_LIGHT = 1`).
 - **Missing data:** if the user asks for a criterion that a shoe has no data for (for example weight), that shoe is not ranked. It is reported separately in `excluded_no_data` with the reason, so the bot can say so.
-- Data pipeline: `data/raw/shoes.csv` -> `src/clean_shoes.py` (checks column count per row, allowed values, numeric ranges, weight and reference size must come together) -> `data/processed/shoes_clean.csv` -> `src/build_shoes_db.py`.
+- Data pipeline: `data/raw/shoes.csv` -> `src/badminton/data/pipeline/clean_shoes.py` (checks column count per row, allowed values, numeric ranges, weight and reference size must come together) -> `data/processed/shoes_clean.csv` -> `src/badminton/data/pipeline/build_shoes_db.py`.
 - Lookup by name: `find_shoe` returns the details of a specific pair (price, size range, weight, fit) or `not_found`.
 
 ### Limits of the shoe recommender
@@ -124,13 +129,26 @@ Same two-step idea as the racket recommender, with different criteria:
 
 ## Agent evaluation
 
-The test suite `src/eval_agent.py` has questions in groups A-H, each run several times (`python src/eval_agent.py [runs] [groups]`). It checks facts, not exact wording: whether the tool was called, whether the arguments are correct, and whether racket names and numbers in the answer appear in the tool result (or in the question).
+`python src/eval_agent.py [runs] [groups]` runs 40 questions in groups A-H. It checks
+facts, not wording: whether the right tool was called, whether the arguments are valid,
+and whether names and numbers in the answer appear in the tool result or in the question.
 
-> **Note:** all results below were measured on the original Vietnamese question set, before the project was translated to English. Re-run `python src/eval_agent.py` and update the numbers.
+| Group | Topic | Questions × runs | Result |
+|---|---|---|---|
+| A | racket, complete info | 3 × 3 | 9/9 |
+| B | racket, missing info | 3 × 3 | 9/9 |
+| C | lookup by racket name | 3 × 3 | 9/9 |
+| D | value ranges | 3 × 3 | 9/9 |
+| E | budget too low | 4 × 3 | 12/12 |
+| F | off-topic / out of scope | 3 × 3 | 8/9 |
+| G | knowledge (RAG) | 8 × 3 | 24/24 |
+| H | shoes | 13 × 3 | 39/39 |
 
-**Groups A-F (racket tools):** 18 questions in 6 groups (complete information, missing information, lookup by racket name, value ranges, budget too low, off-topic), each run 5 times.
-
-**Result:** 90/90 runs passed. This does not mean the true error rate is zero; with 90 runs we can only say the error rate on this question set is low (roughly under 3%).
+**Latest run (all groups, current prompt, 3 runs per question):** 119/120.
+The single failure is F3 ("How much do Yonex shoes cost?"): the bot summarized the price
+range as "about €149 to €175", rounding €174.90 up. The numeric check compares numbers
+exactly, so it flagged 175 as a value that is not in the tool result. The answer is
+correct on reading, so this is a false alarm.
 
 **Bugs found and fixed thanks to the test suite:**
 - Low budget: the bot stated a budget level that is not in the data (~9% of runs, group E). Fixed in 3 rounds: a prompt instruction, then adding the lowest price to the tool result, then adding that racket's details (level, style, `is_exact`) so the bot no longer calls an approximate match "suitable".
@@ -140,35 +158,18 @@ The test suite `src/eval_agent.py` has questions in groups A-H, each run several
 - "Close enough" depends on `MIN_SCORE = 0.5` and author-chosen weights, not on an objective truth. With this threshold, a racket for a lower level can appear in the "closest" list of an advanced player.
 - The script checks numbers and racket names, not the wording of descriptions. Wording errors (such as calling an approximate racket "suitable") only show up when reading real answers.
 
-**Latest run (after the English translation):** every group passed with 2 runs per question [fill in: X/Y per group]. Two runs are enough to catch regressions, not to estimate an error rate.
-
 **Changes made because of the test suite:**
 - Question F3 now expects `find_shoe`: it was written before the shoe tools existed.
-- Group D2 ("medium or stiff") was flaky because the prompt never said what to do when the user accepts several values. Rule 14 in the system prompt fixed it (before: 0/2, after: [fill in]/[fill in]).
+- Group D2 ("medium or stiff") was flaky because the prompt never said what to do when the user accepts several values. Rule 14 in the system prompt fixed it (before: 0/2, after: 3/3).
 - Knowledge retrieval: each passage is embedded with a short title; this fixed a passage that questions saying "beginner" could not find (see Embedding model evaluation).
+
+
 
 ## Embedding model evaluation
 
 - Retrieval (`src/probe_eval.py`): 16/16 on a self-written set of 16 questions, including two Vietnamese questions against the English knowledge base.
 - Each passage is embedded together with a short `title` column (for example "How a beginner should choose a racket, depending on arm strength"). Before adding the titles, a passage written about arm strength was missed by questions that say "beginner", because the word never appears in its text. Three extra questions written after the fix confirm it (ranks 1, 2 and 1).
 - Limits: the question set is small and written by the author, so this shows the method works, not how well it generalizes. With `k = 3`, adding relevant passages can push other relevant ones out of the top 3.
-
-## Answer correctness against knowledge.csv
-
-- Groups A-F: 95/95 after adding RAG (same as before RAG, so no regression on this set).
-- Group G: 40/40 on 8 questions × 5 runs, after fixes to k02, k09 and the tool description.
-- Retrieval alone (`probe_eval`): 10/11. The remaining failure is "who is a head light racket suitable for?", which ranks k02 fifth.
-- Note: D2 fluctuates between 7/10 and 10/10 across runs, even before RAG. A before/after baseline exists only for G3; the other groups have none.
-- Overall: 135/135 does not mean zero errors. The knowledge source is shop blogs, and there are no real users yet.
-
-## Shoe evaluation
-
-Group H in `src/eval_agent.py`: questions on complete information, missing gender or size, size given in UK instead of EU, size not in the data, a racket request that must not be routed to the shoe tool, and lookup of a shoe by name (`find_shoe`). The first 10 questions were each run 4 times.
-
-- **Result:** 39/40. The single failure is a false alarm: when asking for the EU size, the bot gave example sizes ("42, 42.5"), and the script counted them as invented numbers. Read by hand, the answer was correct.
-- No "before" baseline exists for shoes.
-- **Regression check after adding the shoe tool:** groups A, B, E and F3 were re-run once per question and passed. Groups C, D, F1, F2 and G were not re-run, so their earlier results (95/95, 40/40) belong to the previous version of the prompt.
-- The script cannot judge wording, for example whether the bot names the shoes that were left out for missing data; that was checked by reading answers.
 
 ## Ask an expert (n8n + Discord)
 
