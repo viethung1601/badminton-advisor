@@ -1,27 +1,39 @@
 # Badminton Advisor
 
-A gear advisor for badminton players. Currently it recommends rackets and shoes; shuttles are planned.
+An LLM agent that recommends badminton rackets and shoes from a curated catalog and
+answers equipment questions from a small knowledge base. The same tools are available
+through a web chat, a REST API and an MCP server.
 
-## Who is it for?
+![Chatbot recommending a racket](docs/badminton-doctor-chatbot.gif)
 
-Beginner, intermediate and advanced players who want to upgrade their gear but are unsure which racket, shoes or shuttles suit them.
+![Chatbot asking for concrete information before advising](docs/badminton-doctor-chatbot-2.gif)
 
-## How do users filter?
+## Highlights
 
-Self-estimated level (a future version may estimate it from uploaded videos), play style (aggressive attack, attack, control, defense, balance...), budget, grip strength, colors, etc.
-For shoes: gender and EU size (hard filters), foot width (narrow / standard / wide) and a preference for light shoes (soft ranking), optionally a maximum price.
+- **Tool-using agent** (Claude API): the model chooses among 5 tools (`recommend_racket`,
+  `find_racket`, `recommend_shoes`, `find_shoe`, `search_knowledge`) and the server runs them.
+- **RAG** over a knowledge base with a multilingual embedding model, so a Vietnamese or
+  German question can retrieve an English passage.
+- **MCP server** exposing the same tools to any MCP client (for example Claude Desktop).
+- **Layered architecture** (domain / data / presentation) with one tool registry shared by
+  the agent and the MCP server.
+- **Safety nets:** a 712-case golden regression suite, 17 automated tests, and a 40-question
+  agent evaluation (119/120 in the latest run, see [Agent evaluation](#agent-evaluation)).
 
-## What does the user get?
+**Status:** personal portfolio project; no real users yet. The catalog is small
+(26 rackets, 5 shoes) and shuttles are planned. See the limits sections below.
 
-The 3 best options for the item they ask about.
+## What it does
 
-## Language
+Players describe what they need ("I'm a beginner, attacking style, 100 euro") and get the 3
+best options for the item they ask about.
 
-The whole project (code, comments, UI, prompts, tool descriptions, knowledge base and tests) is in English.
-
-- The agent replies in the language the user writes in (the system prompt says so), so Vietnamese or German questions still work.
-- The knowledge base (`data/raw/knowledge.csv`) is an English translation of Vietnamese shop-blog articles; the `source_url` column still points to the original Vietnamese pages.
-- Retrieval uses the multilingual model `paraphrase-multilingual-MiniLM-L12-v2`, so a Vietnamese question can retrieve an English passage.
+- **Rackets:** level, play style, budget, balance, stiffness, weight class.
+- **Shoes:** gender and EU size (hard filters), foot width and a preference for light shoes
+  (soft ranking), optionally a maximum price.
+- **Language:** the project is in English. The agent replies in the language the user writes
+  in. The knowledge base (`data/raw/knowledge.csv`) is an English translation of Vietnamese
+  shop-blog articles; `source_url` still points to the original pages.
 
 ## Architecture
 
@@ -54,7 +66,7 @@ src/badminton/
 Requires Python 3.11+ and an Anthropic API key.
 
 ```powershell
-git clone <repo-url>
+git clone <https://github.com/viethung1601/badminton-advisor.git>
 cd badminton-advisor
 python -m venv .venv
 .venv\Scripts\Activate.ps1
@@ -100,7 +112,7 @@ python tests/test_golden.py        # 712-case regression check
 - Use-case tests run against fake repositories (no database, no API key); API tests
   replace the LLM call with a fake.
 - If you change user-facing text on purpose, the golden test fails. Check that only
-  the text changed. There is currently no script to regenerate it
+  the text changed. There is currently no script to regenerate the baseline.
 
 ## Limits of the racket recommender
 
@@ -162,8 +174,6 @@ correct on reading, so this is a false alarm.
 - Question F3 now expects `find_shoe`: it was written before the shoe tools existed.
 - Group D2 ("medium or stiff") was flaky because the prompt never said what to do when the user accepts several values. Rule 14 in the system prompt fixed it (before: 0/2, after: 3/3).
 - Knowledge retrieval: each passage is embedded with a short title; this fixed a passage that questions saying "beginner" could not find (see Embedding model evaluation).
-
-
 
 ## Embedding model evaluation
 
@@ -229,7 +239,10 @@ FastAPI always calls `/webhook/` (the workflow must be Active), never `/webhook-
 
 ## MCP server
 
-The same tools the agent uses are also exposed as an [MCP](https://modelcontextprotocol.io) server, so any MCP client (for example Claude Desktop) can call the catalog and knowledge base without the custom agent.
+The same tools the agent uses are also exposed as an [MCP](https://modelcontextprotocol.io)
+server, so any MCP client (for example Claude Desktop) can call the catalog and knowledge
+base without the custom agent. Tools: `recommend_racket`, `find_racket`, `recommend_shoes`,
+`find_shoe`, `search_knowledge`.
 
 Run the server (stdio):
 
@@ -242,3 +255,38 @@ Test it with the bundled client:
 ```powershell
 python src/test_mcp_client.py
 ```
+
+### Use it in Claude Desktop
+
+Add this to `claude_desktop_config.json` (Windows: `%APPDATA%\Claude\`), using absolute
+paths to your virtual environment and the repository, then restart Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "badminton-advisor": {
+      "command": "C:\\path\\to\\badminton-advisor\\.venv\\Scripts\\python.exe",
+      "args": ["C:\\path\\to\\badminton-advisor\\src\\mcp_server.py"]
+    }
+  }
+}
+```
+
+The server talks over stdio, so nothing may print to stdout while it runs; logs go to stderr.
+
+## Data sources
+
+- **Product data** (`data/raw/rackets.csv`, `data/raw/shoes.csv`): compiled by hand from manufacturer and shop product pages.
+- **Knowledge base** (`data/raw/knowledge.csv`): English translations and short summaries
+  of articles from of articles from [xbsports.vn](https://xbsports.vn/blogs/news/) and
+[shopvnb.com](https://shopvnb.com/). The `source_url` column ... The `source_url` column links each
+  passage to the original page. The original content belongs to its authors; it is used
+  here only for a non-commercial learning project, and the articles are not redistributed
+  in full.
+- If you are the owner of any of this content and want it removed or credited
+  differently, please open an issue and it will be taken down.
+
+## License
+
+Code: MIT, see [LICENSE](LICENSE).
+The data in `data/raw/` is not covered by this license; see [Data sources](#data-sources).
